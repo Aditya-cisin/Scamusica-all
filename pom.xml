@@ -132,7 +132,74 @@
                 </configuration>
             </plugin>
 
-                
+               
+
+			<plugin>
+                      <groupId>org.panteleyev</groupId>
+                      <artifactId>jpackage-maven-plugin</artifactId>
+                      <version>1.7.1</version>
+                      <executions>
+                          <execution>
+                              <id>package-app</id>
+                              <phase>package</phase>
+                              <goals>
+                                  <goal>jpackage</goal>
+                              </goals>
+                          </execution>
+                      </executions>
+                      <configuration>
+                          <name>Scamusica</name>
+                          <appVersion>1.0.0</appVersion>
+                          <vendor>Scamusica Ltd</vendor>
+                          <destination>${project.build.directory}</destination>
+                          <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
+                          <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
+                  
+                          
+                          <winMenu>true</winMenu>
+                          <winShortcut>true</winShortcut>
+                          <winDirChooser>true</winDirChooser>
+                          <winConsole>false</winConsole>
+                          <icon>src/main/resources/scamusica.ico</icon>
+                      </configuration>
+                  </plugin>
+
+        </plugins>
+    </build>
+</project>
+
+<!-- <plugin>
+                      <groupId>org.panteleyev</groupId>
+                      <artifactId>jpackage-maven-plugin</artifactId>
+                      <version>1.7.1</version>
+                      <executions>
+                          <execution>
+                              <id>package-app</id>
+                              <phase>package</phase>
+                              <goals>
+                                  <goal>jpackage</goal>
+                              </goals>
+                          </execution>
+                      </executions>
+                      <configuration>
+                          <name>Scamusica</name>
+                          <appVersion>1.0.0</appVersion>
+                          <vendor>Scamusica Ltd</vendor>
+                          <destination>${project.build.directory}</destination>
+                          <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
+                          <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
+                  
+                          
+                          <winMenu>true</winMenu>
+                          <winShortcut>true</winShortcut>
+                          <winDirChooser>true</winDirChooser>
+                          <winConsole>false</winConsole>
+                          <icon>src/main/resources/scamusica.ico</icon>
+                      </configuration>
+                  </plugin> -->
+
+
+ <!-- linux
                              <plugin>
 			                <groupId>org.panteleyev</groupId>
 			                <artifactId>jpackage-maven-plugin</artifactId>
@@ -162,9 +229,4 @@
 
 			                    <icon>src/main/resources/scamusica.icns</icon>
 			                </configuration>
-			            </plugin>
-
-        </plugins>
-    </build>
-</project>
-
+			            </plugin> -->
