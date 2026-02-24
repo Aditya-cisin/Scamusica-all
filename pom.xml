@@ -95,29 +95,60 @@
                     <target>${maven.compiler.target}</target>
                 </configuration>
             </plugin>
-                  <plugin>
-                      <groupId>org.openjfx</groupId>
-                      <artifactId>javafx-maven-plugin</artifactId>
-                      <version>0.0.8</version>
-                      <configuration>
-                          <mainClass>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</mainClass>
-                          <jlinkImageName>scamusica-runtime</jlinkImageName>
-                          <jlinkExecutable>${java.home}/bin/jlink</jlinkExecutable>
-                          <compress>2</compress> <!-- size chhota karega -->
-                          <noHeaderFiles>true</noHeaderFiles>
-                          <noManPages>true</noManPages>
-                          <stripDebug>true</stripDebug>
-                      </configuration>
-                      <executions>
-                          <execution>
-                              <id>jlink</id>
-                              <phase>package</phase>
-                              <goals>
-                                  <goal>jlink</goal>
-                              </goals>
-                          </execution>
-                      </executions>
-                  </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.openjfx</groupId>-->
+<!--                <artifactId>javafx-maven-plugin</artifactId>-->
+<!--                <version>0.0.8</version>-->
+<!--                <configuration>-->
+<!--                    <mainClass>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</mainClass>-->
+<!--                    <jlinkImageName>scamusica-runtime</jlinkImageName>-->
+<!--                    <jlinkExecutable>${java.home}/bin/jlink</jlinkExecutable>-->
+<!--                    <compress>2</compress> &lt;!&ndash; size chhota karega &ndash;&gt;-->
+<!--                    <noHeaderFiles>true</noHeaderFiles>-->
+<!--                    <noManPages>true</noManPages>-->
+<!--                    <stripDebug>true</stripDebug>-->
+<!--                </configuration>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>jlink</id>-->
+<!--                        <phase>package</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>jlink</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</mainClass>
+                    <jlinkImageName>scamusica-runtime</jlinkImageName>
+
+                    <launcher>Scamusica</launcher>
+
+                    <options>
+                        <option>--add-modules</option>
+                        <option>javafx.controls,javafx.fxml,javafx.media,javafx.graphics,java.base,java.desktop,java.logging</option>
+
+                        <option>--strip-debug</option>
+                        <option>--no-header-files</option>
+                        <option>--no-man-pages</option>
+                        <option>--compress=2</option>
+                    </options>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>jlink</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jlink</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -132,101 +163,56 @@
                 </configuration>
             </plugin>
 
-               
 
-			<plugin>
-                      <groupId>org.panteleyev</groupId>
-                      <artifactId>jpackage-maven-plugin</artifactId>
-                      <version>1.7.1</version>
-                      <executions>
-                          <execution>
-                              <id>package-app</id>
-                              <phase>package</phase>
-                              <goals>
-                                  <goal>jpackage</goal>
-                              </goals>
-                          </execution>
-                      </executions>
-                      <configuration>
-                          <name>Scamusica</name>
-                          <appVersion>1.0.0</appVersion>
-                          <vendor>Scamusica Ltd</vendor>
-                          <destination>${project.build.directory}</destination>
-                          <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
-                          <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
-                  
-                          
-                          <winMenu>true</winMenu>
-                          <winShortcut>true</winShortcut>
-                          <winDirChooser>true</winDirChooser>
-                          <winConsole>false</winConsole>
-                          <icon>src/main/resources/scamusica.ico</icon>
-                      </configuration>
-                  </plugin>
+            <plugin>
+                <groupId>org.panteleyev</groupId>
+                <artifactId>jpackage-maven-plugin</artifactId>
+                <version>1.7.1</version>
+                <executions>
+                    <execution>
+                        <id>package-app</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jpackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+<!--                <configuration>-->
+<!--                    <name>Scamusica</name>-->
+<!--                    <appVersion>1.0.0</appVersion>-->
+<!--                    <vendor>Scamusica Ltd</vendor>-->
+<!--                    <destination>${project.build.directory}</destination>-->
+
+<!--                    <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>-->
+
+<!--                    <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>-->
+
+
+<!--                    <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>-->
+<!--                    <macPackageName>Scamusica</macPackageName>-->
+
+<!--                    <icon>src/main/resources/scamusica.icns</icon>-->
+<!--                </configuration>-->
+                <configuration>
+                    <name>Scamusica</name>
+                    <appVersion>1.0.0</appVersion>
+                    <vendor>Scamusica Ltd</vendor>
+                    <destination>${project.build.directory}</destination>
+
+                    <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
+
+                    <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
+
+                    <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>
+                    <macPackageName>Scamusica</macPackageName>
+
+                    <type>dmg</type>
+
+                    <icon>src/main/resources/scamusica.icns</icon>
+                </configuration>
+            </plugin>
 
         </plugins>
     </build>
 </project>
 
-<!-- <plugin>
-                      <groupId>org.panteleyev</groupId>
-                      <artifactId>jpackage-maven-plugin</artifactId>
-                      <version>1.7.1</version>
-                      <executions>
-                          <execution>
-                              <id>package-app</id>
-                              <phase>package</phase>
-                              <goals>
-                                  <goal>jpackage</goal>
-                              </goals>
-                          </execution>
-                      </executions>
-                      <configuration>
-                          <name>Scamusica</name>
-                          <appVersion>1.0.0</appVersion>
-                          <vendor>Scamusica Ltd</vendor>
-                          <destination>${project.build.directory}</destination>
-                          <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
-                          <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
-                  
-                          
-                          <winMenu>true</winMenu>
-                          <winShortcut>true</winShortcut>
-                          <winDirChooser>true</winDirChooser>
-                          <winConsole>false</winConsole>
-                          <icon>src/main/resources/scamusica.ico</icon>
-                      </configuration>
-                  </plugin> -->
-
-
- <!-- linux
-                             <plugin>
-			                <groupId>org.panteleyev</groupId>
-			                <artifactId>jpackage-maven-plugin</artifactId>
-			                <version>1.7.1</version>
-			                <executions>
-			                    <execution>
-			                        <id>package-app</id>
-			                        <phase>package</phase>
-			                        <goals>
-			                            <goal>jpackage</goal>
-			                        </goals>
-			                    </execution>
-			                </executions>
-			                <configuration>
-			                    <name>Scamusica</name>
-			                    <appVersion>1.0.0</appVersion>
-			                    <vendor>Scamusica Ltd</vendor>
-			                    <destination>${project.build.directory}</destination>
-
-			                    <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
-
-			                    <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
-
-			                   
-			                    <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>
-			                    <macPackageName>Scamusica</macPackageName>
-
-			                    <icon>src/main/resources/scamusica.icns</icon>
-			                </configuration>
-			            </plugin> -->
