@@ -206,7 +206,7 @@
                     <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>
                     <macPackageName>Scamusica</macPackageName>
 
-                    <type>dmg</type>
+                    <type>DMG</type>
 
                     <icon>src/main/resources/scamusica.icns</icon>
                 </configuration>
