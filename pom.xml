@@ -128,15 +128,10 @@
 
                     <launcher>Scamusica</launcher>
 
-                    <options>
-                        <option>--add-modules</option>
-                        <option>javafx.controls,javafx.fxml,javafx.media,javafx.graphics,java.base,java.desktop,java.logging</option>
-
-                        <option>--strip-debug</option>
-                        <option>--no-header-files</option>
-                        <option>--no-man-pages</option>
-                        <option>--compress=2</option>
-                    </options>
+                    <compress>2</compress>
+                    <noHeaderFiles>true</noHeaderFiles>
+                    <noManPages>true</noManPages>
+                    <stripDebug>true</stripDebug>
                 </configuration>
 
                 <executions>
@@ -215,4 +210,3 @@
         </plugins>
     </build>
 </project>
-
