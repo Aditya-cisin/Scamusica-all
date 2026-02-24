@@ -211,6 +211,12 @@
 #           # $KEYTOOL -importcert ... -alias api1-intermediate -file cert-01
 #           # Etc.
 #           echo "✅ Certs imported into cacerts"
+
+       - name: DEBUG target folder (IMPORTANT)
+         run: |
+           echo "📂 Listing target folder"
+           ls -R target
+
        - name: Inject SSL certs into FINAL app (CRITICAL)
          run: |
            APP_PATH=$(find target -name "*.app" | head -n 1)
