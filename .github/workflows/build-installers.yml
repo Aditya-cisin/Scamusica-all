@@ -217,29 +217,24 @@
            echo "📂 Listing target folder"
            ls -R target
 
-       - name: Inject SSL certs into FINAL app (CRITICAL)
+       - name: Inject SSL certs into runtime (FIXED)
          run: |
-           APP_PATH=$(find target -name "*.app" | head -n 1)
-
-           if [ -z "$APP_PATH" ]; then
-             echo "❌ ERROR: .app not found"
-             exit 1
-           fi
-
-           echo "App path: $APP_PATH"
-
-           KEYTOOL=$APP_PATH/Contents/runtime/bin/keytool
-           CACERTS=$APP_PATH/Contents/runtime/lib/security/cacerts
-
+           RUNTIME=target/scamusica-runtime
+           
+           echo "Runtime path: $RUNTIME"
+           
+           KEYTOOL=$RUNTIME/bin/keytool
+           CACERTS=$RUNTIME/lib/security/cacerts
+           
            # delete old if exists
            $KEYTOOL -delete -alias api1 -keystore $CACERTS -storepass changeit || true
            $KEYTOOL -delete -alias api2 -keystore $CACERTS -storepass changeit || true
-
+           
            # import fresh
            $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass changeit -noprompt -alias api1 -file certs/api1_fullchain.crt
            $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass changeit -noprompt -alias api2 -file certs/api2_fullchain.crt
-
-           echo "✅ Certs injected"
+           
+           echo "✅ Certs injected into runtime"
 
        - name: Verify DMG exists
          run: |
