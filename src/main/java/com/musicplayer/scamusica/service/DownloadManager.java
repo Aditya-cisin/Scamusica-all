@@ -2,10 +2,13 @@ package com.musicplayer.scamusica.service;
 
 import com.musicplayer.scamusica.manager.SessionManager;
 import com.musicplayer.scamusica.util.ApiClient;
+import com.musicplayer.scamusica.util.EncryptionUtil;
 import com.musicplayer.scamusica.util.Utility;
 
 import java.io.File;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -13,135 +16,83 @@ public class DownloadManager {
 
     public interface DownloadListener {
         void onDownloadStarted(int songId, File outputFile);
-
-        /**
-         * bytesDownloaded: bytes read so far for current file
-         * contentLength: total content length in bytes (may be -1 if unknown)
-         */
         void onDownloadProgress(int songId, long bytesDownloaded, long contentLength);
-
-        /**
-         * Fired when a file was actually downloaded (new file).
-         */
         void onDownloadCompleted(int songId, File outputFile);
-
-        /**
-         * Fired when an existing file was present and we skipped downloading it.
-         */
         void onDownloadSkipped(int songId, File existingFile);
-
         void onDownloadFailed(int songId, Exception ex);
-
         void onAllDownloadsFinished();
-
         void onCancelled();
     }
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private volatile boolean cancelled = false;
     private final List<Integer> downloadSequence;
-    private final DownloadListener listener;
     private final String downloadFolderPath;
+    private final DownloadListener listener;
+    private volatile boolean cancelled = false;
 
     public DownloadManager(List<Integer> downloadSequence,
                            String downloadFolderPath,
                            DownloadListener listener) {
-        this.downloadSequence = downloadSequence == null ? Collections.emptyList() : new ArrayList<>(downloadSequence);
+        this.downloadSequence = downloadSequence;
+        this.downloadFolderPath = downloadFolderPath;
         this.listener = listener;
-        this.downloadFolderPath = downloadFolderPath == null ? "./downloads" : downloadFolderPath;
     }
 
     public void start() {
-        cancelled = false;
-        executor.submit(this::runDownloadSequence);
+        executor.submit(this::run);
     }
 
     public void stop() {
         cancelled = true;
     }
 
-    public void shutdownNow() {
-        cancelled = true;
-        executor.shutdownNow();
-    }
+    private void run() {
 
-    private void runDownloadSequence() {
-        try {
-            File baseDir = new File(downloadFolderPath);
+        File baseDir = new File(downloadFolderPath);
+        baseDir.mkdirs();
 
-            String safeFolderPath = downloadFolderPath.replaceAll("[^a-zA-Z0-9_\\s-]", "_").replaceAll("\\s+", "_");
-            baseDir = new File(safeFolderPath);
-
-            if (!baseDir.exists()) {
-                boolean ok = baseDir.mkdirs();
-                if (!ok)
-                    System.out.println("[DownloadManager] Could not create download directory: " + baseDir.getAbsolutePath());
+        for (Integer id : downloadSequence) {
+            if (cancelled) {
+                listener.onCancelled();
+                return;
             }
 
-            for (Integer id : downloadSequence) {
-                if (cancelled) {
-                    notifyCancelled();
-                    return;
+            try {
+                File out = new File(baseDir, "song-" + id + ".mp3");
+
+                if (out.exists() && out.length() > 0) {
+                    listener.onDownloadSkipped(id, out);
+                    continue;
                 }
-                if (id == null) continue;
 
-                try {
-                    File outFile = new File(baseDir, "song-" + id + ".mp3");
+                String url = Utility.BASE_URL.get()
+                        + "/api/music/songs/" + id + "/stream";
 
-                    if (outFile.exists() && outFile.length() > 0) {
-                        System.out.println("[DownloadManager] File exists, skipping id: " + id);
-                        if (listener != null) listener.onDownloadSkipped(id, outFile);
-                        continue;
-                    }
+                listener.onDownloadStarted(id, out);
 
-                    String streamUrl = Utility.BASE_URL.get() + "/api/music/songs/" + id + "/stream";
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Authorization",
+                        "Bearer " + SessionManager.loadToken());
 
-                    if (listener != null) listener.onDownloadStarted(id, outFile);
+                File tmp = new File(baseDir, "song-" + id + ".tmp");
 
-                    Map<String, String> headers = new HashMap<>();
-                    String token = SessionManager.loadToken();
-                    if (token != null && !token.trim().isEmpty()) {
-                        headers.put("Authorization", "Bearer " + token);
-                    }
+                ApiClient.downloadToFile(
+                        url,
+                        headers,
+                        tmp,
+                        (b, t) -> listener.onDownloadProgress(id, b, t)
+                );
 
-                    final int songId = id;
-                    ApiClient.ProgressCallback progressCallback = (bytesRead, contentLength) -> {
-                        if (listener != null) {
-                            try {
-                                listener.onDownloadProgress(songId, bytesRead, contentLength);
-                            } catch (Exception ignored) {
-                            }
-                        }
-                    };
+                EncryptionUtil.encryptFile(tmp, out);
+                tmp.delete();
 
-                    boolean success = ApiClient.downloadToFile(streamUrl, headers, outFile, progressCallback);
+                listener.onDownloadCompleted(id, out);
 
-                    if (success) {
-                        if (listener != null) listener.onDownloadCompleted(id, outFile);
-                        System.out.println("[DownloadManager] Download completed for id: " + id);
-                    } else {
-                        if (listener != null) listener.onDownloadFailed(id, new RuntimeException("Non-2xx response"));
-                        System.out.println("[DownloadManager] Download failed for id: " + id);
-                    }
-
-                } catch (Exception ex) {
-                    if (listener != null) listener.onDownloadFailed(id, ex);
-                    System.out.println("[DownloadManager] Exception downloading id " + id + ": " + ex.getMessage());
-                }
+            } catch (Exception e) {
+                listener.onDownloadFailed(id, e);
             }
-
-            if (!cancelled) {
-                if (listener != null) listener.onAllDownloadsFinished();
-            } else {
-                notifyCancelled();
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
         }
-    }
 
-    private void notifyCancelled() {
-        System.out.println("[DownloadManager] Downloading cancelled.");
-        if (listener != null) listener.onCancelled();
+        listener.onAllDownloadsFinished();
     }
 }
