@@ -826,21 +826,51 @@ public class PlayerController extends Application {
             bigIcon.setIconColor(javafx.scene.paint.Color.WHITE);
         }
     }
-    private String encodeMediaUrl(String rawUrl) {
-        try {
-            URL url = new URL(rawUrl);
+    // private String encodeMediaUrl(String rawUrl) {
+    //     try {
+    //         URL url = new URL(rawUrl);
 
-            String encodedPath = Arrays.stream(url.getPath().split("/"))
-                    .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8)
-                            .replace("+", "%20"))
-                    .collect(Collectors.joining("/"));
+    //         String encodedPath = Arrays.stream(url.getPath().split("/"))
+    //                 .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8)
+    //                         .replace("+", "%20"))
+    //                 .collect(Collectors.joining("/"));
 
-            return url.getProtocol() + "://" + url.getHost() + encodedPath;
+    //         return url.getProtocol() + "://" + url.getHost() + encodedPath;
 
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid media URL: " + rawUrl, e);
+    //     } catch (Exception e) {
+    //         throw new RuntimeException("Invalid media URL: " + rawUrl, e);
+    //     }
+    // }
+
+     private String encodeMediaUrl(String rawUrl) {
+            try {
+                // 1. URL parse karo
+                URL url = new URL(rawUrl);
+
+                // 2. Path ko Normalize karo (NFC form mein)
+                // Ye "N + ~" ko wapas single "Ñ" mein convert kar dega
+                String normalizedPath = Normalizer.normalize(url.getPath(), Normalizer.Form.NFC);
+
+                // 3. Ab segments ko encode karo
+                String encodedPath = Arrays.stream(normalizedPath.split("/"))
+                        .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8)
+                                .replace("+", "%20"))
+                        .collect(Collectors.joining("/"));
+
+                // 4. Final URL build karo
+                // Port handling bhi add kar di hai safe rehne ke liye
+                String protocol = url.getProtocol();
+                String host = url.getHost();
+                int port = url.getPort();
+                String portStr = (port == -1) ? "" : ":" + port;
+
+                return protocol + "://" + host + portStr + encodedPath;
+
+            } catch (Exception e) {
+                System.err.println("URL Encoding Error: " + e.getMessage());
+                return rawUrl; // Fallback
+            }
         }
-    }
 
 
     public static void main(String[] args) {
