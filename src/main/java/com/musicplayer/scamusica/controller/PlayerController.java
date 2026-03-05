@@ -278,7 +278,16 @@ public class PlayerController extends Application {
 
     private void recomputeGlobalCountAndUpdateUI() {
         Platform.runLater(() -> {
-            int globalExisting = countExistingDownloadedFiles(new File("./downloads"));
+            String baseDownloadDir = System.getProperty("user.home")
+                    + File.separator + ".scamusica"
+                    + File.separator + "downloads";
+
+            File baseDir = new File(baseDownloadDir);
+            if (!baseDir.exists()) {
+                baseDir.mkdirs();
+            }
+
+            int globalExisting = countExistingDownloadedFiles(new File(baseDownloadDir));
             totalDownloadedCounter.set(globalExisting);
             albumUtil.setSongCount(globalExisting);
         });
@@ -351,7 +360,9 @@ public class PlayerController extends Application {
 
             currentGenreTotalFiles = downloadSeq.size();
 
-            String genreFolderPath = "./downloads/" + playlistName.replaceAll("\\s+", "_");
+            String baseDownloadDir = System.getProperty("user.home") + File.separator + ".scamusica" + File.separator + "downloads";
+
+            String genreFolderPath = baseDownloadDir + File.separator + playlistName.replaceAll("\\s+", "_");
             int existingInGenre = countExistingInGenreFolder(genreFolderPath);
             currentGenreDownloadedCount.set(existingInGenre);
 
