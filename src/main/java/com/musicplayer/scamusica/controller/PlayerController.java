@@ -587,6 +587,7 @@ public class PlayerController extends Application {
         }
 
         String safeUrl = encodeMediaUrl(track.getUrl());
+        System.out.println("MEDIA URL = " + safeUrl);
 
         Media media = new Media(safeUrl);
         mediaPlayer = new MediaPlayer(media);
@@ -835,6 +836,7 @@ public class PlayerController extends Application {
                     .collect(Collectors.joining("/"));
 
             return url.getProtocol() + "://" + url.getHost() + encodedPath;
+
         } catch (Exception e) {
             throw new RuntimeException("Invalid media URL: " + rawUrl, e);
         }
