@@ -2,7 +2,6 @@ package com.musicplayer.scamusica.manager;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.musicplayer.scamusica.util.EncryptionUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,8 +9,8 @@ import java.io.FileOutputStream;
 import java.util.Properties;
 
 public class SessionManager {
-    private static final String CONFIG_DIR = "./scamusica";
-    private static final String CONFIG_FILE = CONFIG_DIR + File.separator+"session.properties";
+    private static final String CONFIG_DIR = System.getProperty("user.home") + File.separator + ".scamusica";
+    private static final String CONFIG_FILE = CONFIG_DIR + File.separator + "session.properties";
 
 
     // Save token + language to file
@@ -25,12 +24,11 @@ public class SessionManager {
             // encrypt before saving
             String encryptedToken = EncryptionUtil.encrypt(token);
 
-            String encryptedUserId= EncryptionUtil.encrypt(userID.toString());
+            String encryptedUserId = EncryptionUtil.encrypt(userID.toString());
 
             properties.setProperty("token", encryptedToken);
             properties.setProperty("userId", encryptedUserId);
             properties.setProperty("language", language);
-
 
 
             FileOutputStream out = new FileOutputStream(CONFIG_FILE);
@@ -52,15 +50,20 @@ public class SessionManager {
             properties.load(new FileInputStream(file));
 
             String encryptedToken = properties.getProperty("token");
-            System.out.println(EncryptionUtil.decrypt(encryptedToken));
-            if (encryptedToken == null) return null;
+            if (encryptedToken == null || encryptedToken.isEmpty()) {
+                System.out.println("Token missing in session file");
+                return null;
+            }
 
-            return EncryptionUtil.decrypt(encryptedToken);
+            String decrypted = EncryptionUtil.decrypt(encryptedToken);
+            System.out.println("Loaded token: " + decrypted);
+            return decrypted;
 
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
-        
+
     }
 
     public static Integer getUserId() {
@@ -106,6 +109,7 @@ public class SessionManager {
         File file = new File(CONFIG_FILE);
         if (file.exists()) file.delete();
     }
+
     public static void saveLanguage(String language) {
         try {
             // Ensure directory exists
@@ -135,6 +139,7 @@ public class SessionManager {
             e.printStackTrace();
         }
     }
+
     // Is token present & valid?
     public static boolean isUserLoggedIn() {
         String token = loadToken();
