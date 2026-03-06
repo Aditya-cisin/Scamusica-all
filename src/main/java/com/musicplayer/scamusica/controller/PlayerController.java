@@ -285,9 +285,15 @@
     
                 File baseDir = new File(baseDownloadDir);
                 if (!baseDir.exists()) {
-                    baseDir.mkdirs();
+                    boolean created = baseDir.mkdirs();
+                    System.out.println("[PlayerController] Base dir created: " + created);
                 }
-    
+
+                // Mac installer permissions fix
+                baseDir.setWritable(true, false);
+                baseDir.setReadable(true, false);
+                baseDir.setExecutable(true, false);
+
                 int globalExisting = countExistingDownloadedFiles(new File(baseDownloadDir));
                 totalDownloadedCounter.set(globalExisting);
                 albumUtil.setSongCount(globalExisting);
@@ -364,6 +370,14 @@
                 String baseDownloadDir = System.getProperty("user.home") + File.separator + ".scamusica" + File.separator + "downloads";
     
                 String genreFolderPath = baseDownloadDir + File.separator + playlistName.replaceAll("\\s+", "_");
+
+                File genreDir = new File(genreFolderPath);
+                if (!genreDir.exists()) {
+                    boolean created = genreDir.mkdirs();
+                    System.out.println("[PlayerController] Genre folder created: " + created + " at " + genreFolderPath);
+                }
+                genreDir.setWritable(true, false);
+
                 int existingInGenre = countExistingInGenreFolder(genreFolderPath);
                 currentGenreDownloadedCount.set(existingInGenre);
     
