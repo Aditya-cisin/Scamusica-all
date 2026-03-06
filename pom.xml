@@ -190,11 +190,11 @@
 			                    <!-- Mac specific -->
 			                    <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>
 								<arguments>
-			                        <argument>--mac-package-name</argument>
-			                        <argument>Scamusica</argument>
-			                        <argument>--mac-app-store-category</argument>
-			                        <argument>music</argument>
-			                    </arguments>
+						            <argument>--mac-package-name</argument>
+						            <argument>Scamusica</argument>
+						            <argument>--mac-app-store-category</argument>
+						            <argument>public.app-category.music</argument>
+						        </arguments>
 			                    <macPackageName>Scamusica</macPackageName>
 
 			                    <icon>src/main/resources/scamusica.icns</icon>
