@@ -300,7 +300,7 @@ env:
 jobs:
  build-macos-intel:
    name: Build macOS Intel DMG
-   runs-on: macos-13
+   runs-on: macos-14
    # runs-on: macos-15-intel
    steps:
      - name: Checkout sources
