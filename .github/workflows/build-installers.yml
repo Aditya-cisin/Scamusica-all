@@ -300,7 +300,8 @@ env:
 jobs:
  build-macos-intel:
    name: Build macOS Intel DMG
-   runs-on: macos-15-intel
+   runs-on: macos-13
+   # runs-on: macos-15-intel
    steps:
      - name: Checkout sources
        uses: actions/checkout@v4
