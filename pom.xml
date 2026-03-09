@@ -133,7 +133,7 @@
                 </configuration>
             </plugin>
 
-                <!-- <plugin>
+                <plugin>
                       <groupId>org.panteleyev</groupId>
                       <artifactId>jpackage-maven-plugin</artifactId>
                       <version>1.7.1</version>
@@ -154,15 +154,15 @@
                           <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
                           <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
                   
-                         
+                          
                           <winMenu>true</winMenu>
                           <winShortcut>true</winShortcut>
                           <winDirChooser>true</winDirChooser>
                           <winConsole>false</winConsole>
                           <icon>src/main/resources/scamusica.ico</icon>
                       </configuration>
-                  </plugin> -->
-                             <plugin>
+                  </plugin>
+                             <!-- <plugin>
 			                <groupId>org.panteleyev</groupId>
 			                <artifactId>jpackage-maven-plugin</artifactId>
 			                <version>1.7.1</version>
@@ -199,7 +199,7 @@
 
 			                    <icon>src/main/resources/scamusica.icns</icon>
 			                </configuration>
-			            </plugin>
+			            </plugin> -->
 
         </plugins>
     </build>
