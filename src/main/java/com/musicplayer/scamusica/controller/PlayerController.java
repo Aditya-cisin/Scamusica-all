@@ -203,7 +203,7 @@
                                     controlsWrapper,
                                     bottomBar,
                                     downloadLabel,
-                                    false
+                                    true
                             );
                         } catch (URISyntaxException e) {
                             throw new RuntimeException(e);
@@ -219,7 +219,6 @@
             primaryStage.setOnCloseRequest(event -> {
                 System.out.println("[PlayerController] Closing application...");
 
-                // 1. Stop Playback correctly
                 if (mediaPlayer != null) {
                     try {
                         mediaPlayer.stop();
@@ -227,17 +226,14 @@
                     } catch (Exception ignored) {}
                 }
 
-                // 2. Stop Downloads (Warna background threads exit nahi hone dengi)
                 if (downloadManager != null) {
                     try {
                         downloadManager.stop();
                     } catch (Exception ignored) {}
                 }
 
-                // 3. JavaFX Platform ko exit command do
                 Platform.exit();
 
-                // 4. Poore JVM process ko kill karo (macOS dock fix)
                 System.exit(0);
             });
             
@@ -258,7 +254,7 @@
                             controlsWrapper,
                             bottomBar,
                             downloadLabel,
-                            false
+                            true
                     );
                 } catch (URISyntaxException e) {
                     throw new RuntimeException(e);
@@ -379,7 +375,13 @@
     
             try {
                 PlaylistApiService playlistApiService = new PlaylistApiService();
-                playQueue.addAll(playlistApiService.fetchTracksForGenre(playlistName));
+                List<PlaylistTrack> fetchedTracks = playlistApiService.fetchTracksForGenre(playlistName);
+            
+                if (fetchedTracks != null && !fetchedTracks.isEmpty()) {
+                    playQueue.addAll(fetchedTracks);
+
+                    java.util.Collections.shuffle(playQueue); 
+                }
     
                 recomputeGlobalCountAndUpdateUI();
     
@@ -476,6 +478,29 @@
                                     updateGenreDownloadLabel(downloadLabel);
     
                                     updatePlayButtonState(controlsWrapper);
+
+                                    if (newGenreCount >= 2) {
+                                        Platform.runLater(() -> {
+                                            if (mediaPlayer == null || mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING) {
+                                                try {
+                                                    System.out.println("[AutoPlay] 2 songs downloaded. Starting playback...");
+                                                    playTrack(
+                                                        albumHeading,
+                                                        titleLabel,
+                                                        progressSlider,
+                                                        leftTime,
+                                                        rightTime,
+                                                        controlsWrapper,
+                                                        bottomBar,
+                                                        downloadLabel,
+                                                        true // autoPlay = true
+                                                    );
+                                                } catch (URISyntaxException e) {
+                                                    e.printStackTrace();
+                                                }
+                                            }
+                                        });
+                                    }
                                 }
     
                                 @Override
@@ -487,6 +512,14 @@
     
                                     updateGenreDownloadLabel(downloadLabel);
                                     updatePlayButtonState(controlsWrapper);
+
+                                    if (newGenreCount >= 2 && (mediaPlayer == null || mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING)) {
+                                        Platform.runLater(() -> {
+                                            try {
+                                                playTrack(albumHeading, titleLabel, progressSlider, leftTime, rightTime, controlsWrapper, bottomBar, downloadLabel, true);
+                                            } catch (Exception ignored) {}
+                                        });
+                                    }
                                 }
     
                                 @Override
