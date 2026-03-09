@@ -215,6 +215,32 @@
                     LanguageManager.createStringBinding("app.title")
             );
             primaryStage.setScene(scene);
+
+            primaryStage.setOnCloseRequest(event -> {
+                System.out.println("[PlayerController] Closing application...");
+
+                // 1. Stop Playback correctly
+                if (mediaPlayer != null) {
+                    try {
+                        mediaPlayer.stop();
+                        mediaPlayer.dispose();
+                    } catch (Exception ignored) {}
+                }
+
+                // 2. Stop Downloads (Warna background threads exit nahi hone dengi)
+                if (downloadManager != null) {
+                    try {
+                        downloadManager.stop();
+                    } catch (Exception ignored) {}
+                }
+
+                // 3. JavaFX Platform ko exit command do
+                Platform.exit();
+
+                // 4. Poore JVM process ko kill karo (macOS dock fix)
+                System.exit(0);
+            });
+            
             primaryStage.show();
     
             Platform.runLater(() -> {
