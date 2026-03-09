@@ -103,8 +103,8 @@
                           <mainClass>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</mainClass>
                           <jlinkImageName>scamusica-runtime</jlinkImageName>
                           <jlinkExecutable>${java.home}/bin/jlink</jlinkExecutable>
-						  <bindServices>true</bindServices> <!-- bind added for extra libs -->
-                          <compress>2</compress> <!-- size chhota karega -->
+						  <bindServices>true</bindServices>
+                          <compress>2</compress> 
                           <noHeaderFiles>true</noHeaderFiles>
                           <noManPages>true</noManPages>
                           <stripDebug>true</stripDebug>
@@ -162,111 +162,6 @@
                           <icon>src/main/resources/scamusica.ico</icon>
                       </configuration>
                   </plugin>
-                             <!-- <plugin>
-			                <groupId>org.panteleyev</groupId>
-			                <artifactId>jpackage-maven-plugin</artifactId>
-			                <version>1.7.1</version>
-			                <executions>
-			                    <execution>
-			                        <id>package-app</id>
-			                        <phase>package</phase>
-			                        <goals>
-			                            <goal>jpackage</goal>
-			                        </goals>
-			                    </execution>
-			                </executions>
-			                <configuration>
-			                    <name>Scamusica</name>
-			                    <appVersion>1.0.0</appVersion>
-			                    <vendor>Scamusica Ltd</vendor>
-			                    <destination>${project.build.directory}</destination>
-
-			                    
-			                    <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
-
-			                   
-			                    <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
-
-			                    
-			                    <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>
-								<arguments>
-						            <argument>--mac-package-name</argument>
-						            <argument>Scamusica</argument>
-						            <argument>--mac-app-store-category</argument>
-						            <argument>public.app-category.music</argument>
-						        </arguments>
-			                    <macPackageName>Scamusica</macPackageName>
-
-			                    <icon>src/main/resources/scamusica.icns</icon>
-			                </configuration>
-			            </plugin> -->
-
         </plugins>
     </build>
 </project>
-
-<!--For Mac-->
-            <!--            <plugin>-->
-            <!--                <groupId>org.panteleyev</groupId>-->
-            <!--                <artifactId>jpackage-maven-plugin</artifactId>-->
-            <!--                <version>1.7.1</version>-->
-            <!--                <executions>-->
-            <!--                    <execution>-->
-            <!--                        <id>package-app</id>-->
-            <!--                        <phase>package</phase>-->
-            <!--                        <goals>-->
-            <!--                            <goal>jpackage</goal>-->
-            <!--                        </goals>-->
-            <!--                    </execution>-->
-            <!--                </executions>-->
-            <!--                <configuration>-->
-            <!--                    <name>Scamusica</name>-->
-            <!--                    <appVersion>1.0.0</appVersion>-->
-            <!--                    <vendor>Scamusica Ltd</vendor>-->
-            <!--                    <destination>${project.build.directory}</destination>-->
-
-            <!--                    &lt;!&ndash; Custom runtime image from jlink &ndash;&gt;-->
-            <!--                    <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>-->
-
-            <!--                    &lt;!&ndash; Modular entry &ndash;&gt;-->
-            <!--                    <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>-->
-
-            <!--                    &lt;!&ndash; Mac specific &ndash;&gt;-->
-            <!--                    <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>-->
-            <!--                    <macPackageName>Scamusica</macPackageName>-->
-
-            <!--                    <icon>src/main/resources/scamusica.icns</icon>-->
-            <!--                </configuration>-->
-            <!--            </plugin>-->
-
-<!-- For Windows -->
-
-<!-- <plugin>
-                      <groupId>org.panteleyev</groupId>
-                      <artifactId>jpackage-maven-plugin</artifactId>
-                      <version>1.7.1</version>
-                      <executions>
-                          <execution>
-                              <id>package-app</id>
-                              <phase>package</phase>
-                              <goals>
-                                  <goal>jpackage</goal>
-                              </goals>
-                          </execution>
-                      </executions>
-                      <configuration>
-                          <name>Scamusica</name>
-                          <appVersion>1.0.0</appVersion>
-                          <vendor>Scamusica Ltd</vendor>
-                          <destination>${project.build.directory}</destination>
-                          <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
-                          <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
-                  
-                          
-                          <winMenu>true</winMenu>
-                          <winShortcut>true</winShortcut>
-                          <winDirChooser>true</winDirChooser>
-                          <winConsole>false</winConsole>
-                          <icon>src/main/resources/scamusica.ico</icon>
-                      </configuration>
-                  </plugin> -->
