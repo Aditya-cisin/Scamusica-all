@@ -181,13 +181,13 @@
 			                    <vendor>Scamusica Ltd</vendor>
 			                    <destination>${project.build.directory}</destination>
 
-			                    <!-- Custom runtime image from jlink -->
+			                    
 			                    <runtimeImage>${project.build.directory}/scamusica-runtime</runtimeImage>
 
-			                    <!-- Modular entry -->
+			                   
 			                    <module>com.musicplayer.scamusica/com.musicplayer.scamusica.Main</module>
 
-			                    <!-- Mac specific -->
+			                    
 			                    <macPackageIdentifier>com.scamusica.player</macPackageIdentifier>
 								<arguments>
 						            <argument>--mac-package-name</argument>
