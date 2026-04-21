@@ -167,7 +167,6 @@ public class CodeVerificationController extends Application {
         });*/
         loginButton.setOnAction(event -> {
             if(!SessionManager.isUserLoggedIn()) {
-
                 if(onlineStatus) {
                     String enteredPassword = passwordField.getText();
 
@@ -194,7 +193,6 @@ public class CodeVerificationController extends Application {
                                     + "\"deviceId\": \"" + deviceId + "\""
                                     + "}";
                             // String jsonBody = "{ \"licenseCode\": \"" + enteredPassword + "\" }";
-
                             HttpRequest request = HttpRequest.newBuilder()
                                     .uri(URI.create(Utility.BASE_URL.get() + Utility.VERIFY_LICENSE_CODE.get()))
                                     .timeout(Duration.ofSeconds(8))
