@@ -43,7 +43,7 @@ public class ConnectivityMonitor {
 
     private Status checkApiConnectivity() {
         try {
-            URL url = new URL(Utility.BASE_URL.get() + "/api/ping");
+            URL url = new URL(Utility.BASE_URL.get());
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("GET");
             con.setConnectTimeout(2000);
@@ -56,6 +56,7 @@ public class ConnectivityMonitor {
                     : Status.OFFLINE;
 
         } catch (Exception e) {
+            e.printStackTrace();
             return Status.OFFLINE;
         }
     }
