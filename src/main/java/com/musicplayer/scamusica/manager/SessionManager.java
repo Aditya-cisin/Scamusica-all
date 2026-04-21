@@ -2,6 +2,7 @@ package com.musicplayer.scamusica.manager;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.musicplayer.scamusica.util.EncryptionUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -9,9 +10,20 @@ import java.io.FileOutputStream;
 import java.util.Properties;
 
 public class SessionManager {
-    private static final String CONFIG_DIR = System.getProperty("user.home") + File.separator + ".scamusica";
+      private static final String CONFIG_DIR = getConfigDir();
     private static final String CONFIG_FILE = CONFIG_DIR + File.separator + "session.properties";
 
+    private static String getConfigDir() {
+        String os = System.getProperty("os.name").toLowerCase();
+
+        if (os.contains("mac")) {
+            return System.getProperty("user.home") + "/Library/Application Support/Scamusica";
+        } else if (os.contains("win")) {
+            return System.getenv("LOCALAPPDATA") + "\\Scamusica";
+        } else {
+            return System.getProperty("user.home") + "/.scamusica";
+        }
+    }
 
     // Save token + language to file
     public static void saveToken(String token, Integer userID, String language) {
@@ -24,16 +36,15 @@ public class SessionManager {
             // encrypt before saving
             String encryptedToken = EncryptionUtil.encrypt(token);
 
-            String encryptedUserId = EncryptionUtil.encrypt(userID.toString());
+            String encryptedUserId= EncryptionUtil.encrypt(userID.toString());
 
             properties.setProperty("token", encryptedToken);
             properties.setProperty("userId", encryptedUserId);
             properties.setProperty("language", language);
 
-
-            FileOutputStream out = new FileOutputStream(CONFIG_FILE);
+            try(FileOutputStream out = new FileOutputStream(CONFIG_FILE)){
             properties.store(out, "Scamusica Session");
-            out.close();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -50,20 +61,15 @@ public class SessionManager {
             properties.load(new FileInputStream(file));
 
             String encryptedToken = properties.getProperty("token");
-            if (encryptedToken == null || encryptedToken.isEmpty()) {
-                System.out.println("Token missing in session file");
-                return null;
-            }
+            if (encryptedToken == null) return null;
 
-            String decrypted = EncryptionUtil.decrypt(encryptedToken);
-            System.out.println("Loaded token: " + decrypted);
-            return decrypted;
+            return EncryptionUtil.decrypt(encryptedToken);
 
         } catch (Exception e) {
-            e.printStackTrace();
+             e.printStackTrace();
             return null;
         }
-
+        
     }
 
     public static Integer getUserId() {
@@ -80,6 +86,7 @@ public class SessionManager {
             return Integer.valueOf(EncryptionUtil.decrypt(encryptedToken));
 
         } catch (Exception e) {
+             e.printStackTrace();
             return null;
         }
 
@@ -99,6 +106,7 @@ public class SessionManager {
             return language;
 
         } catch (Exception e) {
+             e.printStackTrace();
             return "en";
         }
 
@@ -109,7 +117,6 @@ public class SessionManager {
         File file = new File(CONFIG_FILE);
         if (file.exists()) file.delete();
     }
-
     public static void saveLanguage(String language) {
         try {
             // Ensure directory exists
@@ -131,15 +138,14 @@ public class SessionManager {
             properties.setProperty("language", language);
 
             // Save back to file
-            FileOutputStream out = new FileOutputStream(CONFIG_FILE);
+           try( FileOutputStream out = new FileOutputStream(CONFIG_FILE)){
             properties.store(out, "Scamusica Session");
-            out.close();
+           }
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
     // Is token present & valid?
     public static boolean isUserLoggedIn() {
         String token = loadToken();
