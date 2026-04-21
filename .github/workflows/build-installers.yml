@@ -291,6 +291,18 @@
            $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt \
              -alias cis-root \
              -file "certs/ca 9.crt"
+
+           echo "Importing NEW Certificates..."
+           $KEYTOOL -delete -alias new-cert-1 -keystore $CACERTS -storepass $STORE_PASS -noprompt || true
+           $KEYTOOL -delete -alias new-cert-2 -keystore $CACERTS -storepass $STORE_PASS -noprompt || true
+       
+           $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt \
+             -alias new-cert-1 \
+             -file "certs/ca-10.crt"
+       
+           $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt \
+             -alias new-cert-2 \
+             -file "certs/Fortinet_CA_SSLProxy_new-7.cer"
              
            echo "✅ All Certs (API + CIS Root) imported into cacerts"
 
