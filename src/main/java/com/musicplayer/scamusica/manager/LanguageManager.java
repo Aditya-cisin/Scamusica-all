@@ -33,6 +33,11 @@ public class LanguageManager {
     }
 
     public static void setLanguage(String langCode) {
+
+        if (langCode == null || langCode.isEmpty()) {
+            langCode = "es";
+        }
+
         Locale newLocale = switch (langCode) {
             case "es" -> new Locale("es");
             case "en" -> new Locale("en");
@@ -44,8 +49,9 @@ public class LanguageManager {
             case "ja" -> new Locale("ja");
             case "ar" -> new Locale("ar");
             case "hi" -> new Locale("hi");
-            default -> Locale.ENGLISH;
+            default -> new Locale("es");
         };
+        
         SessionManager.saveLanguage(newLocale.getLanguage());
         locale.set(newLocale);
     }
