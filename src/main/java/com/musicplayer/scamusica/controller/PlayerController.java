@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 public class PlayerController extends Application {
@@ -50,6 +51,9 @@ public class PlayerController extends Application {
 
     private VBox playlistDropdownCard;
     private HBox playlistPill;
+
+    private static final String PREF_VOLUME = "player_volume";
+    private final Preferences prefs = Preferences.userNodeForPackage(PlayerController.class);
 
     private final List<PlaylistTrack> playQueue = new ArrayList<>();
     private int currentTrackIndex = 0;
@@ -91,14 +95,28 @@ public class PlayerController extends Application {
         rightMeta.getChildren().add(languageBox);
         BorderPane header = headerUtil.createHeader(leftMeta, logoView, rightMeta);
 
+
+
         Label albumHeading = albumUtil.createAlbumHeading();
+
+        // New Code
+
+        Label currentStyleLabel = new Label();
+        currentStyleLabel.textProperty().bind(
+                LanguageManager.createStringBinding("label.currentStyle")
+        );
+//        currentStyleLabel.setText("Current Style");
+        currentStyleLabel.getStyleClass().add("section-heading-styles");
+
+        // New Code
+
         ImageView img = albumUtil.createAlbumImage(getClass());
         albumImageView = img;
         albumUtil.applyClip(img);
         HBox songsBox = albumUtil.createSongsBox();
 
         VBox leftAlbumVBox = albumUtil.createLeftAlbumVBox(albumHeading, img, songsBox);
-
+        leftAlbumVBox.getChildren().add(0, currentStyleLabel);
         recomputeGlobalCountAndUpdateUI();
 
         List<String> tempList;
@@ -129,10 +147,21 @@ public class PlayerController extends Application {
         playlistPill = dropdownUtil.createPlaylistPill(playlistCurrent[0]);
         playlistDropdownCard =
                 dropdownUtil.createDropdownCard(playlistViewItems, playlistCurrent, playlistMaster, playlistPill);
+
         HBox playlistHeaderBox = dropdownUtil.createPlaylistHeaderBox(playlistPill);
 
+        // New Code
+        Label sequencesLabel = new Label();
+        sequencesLabel.textProperty().bind(
+                LanguageManager.createStringBinding("label.sequencesTitle")
+        );
+        sequencesLabel.getStyleClass().add("section-heading-sequences");
+
+        // New Code
+
         VBox rightColumn = new VBox(8);
-        rightColumn.getChildren().addAll(playlistHeaderBox);
+        rightColumn.getChildren().addAll(sequencesLabel, playlistHeaderBox);
+//        rightColumn.getChildren().addAll(playlistHeaderBox);
         HBox rightWrapper = new HBox(rightColumn);
         rightWrapper.setAlignment(Pos.TOP_RIGHT);
 
@@ -246,7 +275,24 @@ public class PlayerController extends Application {
 
         Platform.runLater(() -> {
             controlsUtil.setupSliderFill(progressSlider);
+
+            Slider volumeSlider = controlsUtil.getVolumeSlider(bottomBar);
             controlsUtil.setupVolumeSliderFill(controlsUtil.getVolumeSlider(bottomBar));
+
+            // Saved volume load karo, default 85
+            double savedVolume = prefs.getDouble(PREF_VOLUME, 85.0);
+            volumeSlider.setValue(savedVolume);
+            if (mediaPlayer != null) {
+                mediaPlayer.setVolume(savedVolume / 100.0);
+            }
+
+            // Volume change hone par save karo
+            volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+                prefs.putDouble(PREF_VOLUME, newVal.doubleValue());
+                if (mediaPlayer != null) {
+                    mediaPlayer.setVolume(newVal.doubleValue() / 100.0);
+                }
+            });
 
             try {
                 loadPlaylistAndStart(
@@ -375,6 +421,17 @@ public class PlayerController extends Application {
 
         stopPlayback(progressSlider, leftTime, rightTime, controlsWrapper, downloadLabel);
 
+        if (!playQueue.isEmpty() && albumImageView != null) {
+            String firstImgUrl = playQueue.get(0).getAlbumImageUrl();
+            if (firstImgUrl != null && !firstImgUrl.trim().isEmpty()) {
+                Platform.runLater(() -> {
+                    try {
+                        albumImageView.setImage(new Image(firstImgUrl, true));
+                    } catch (Exception ignored) {}
+                });
+            }
+        }
+
         playQueue.clear();
         currentTrackIndex = 0;
 
@@ -433,11 +490,13 @@ public class PlayerController extends Application {
                 }
             }
 
-            if (needDownload) {
-                setGenreSwitchEnabled(false);
-            } else {
-                setGenreSwitchEnabled(true);
-            }
+//            if (needDownload) {
+//                setGenreSwitchEnabled(false);
+//            } else {
+//                setGenreSwitchEnabled(true);
+//            }
+
+            setGenreSwitchEnabled(true);
 
             if (!downloadSeq.isEmpty()) {
                 downloadManager = new DownloadManager(downloadSeq, genreFolderPath,
@@ -445,7 +504,7 @@ public class PlayerController extends Application {
                             @Override
                             public void onDownloadStarted(int songId, File outputFile) {
                                 currentFileProgressFraction = 0.0;
-                                setGenreSwitchEnabled(false);
+//                                setGenreSwitchEnabled(false);
 
                                 updatePlayButtonState(controlsWrapper);
 
@@ -490,7 +549,9 @@ public class PlayerController extends Application {
                                     updatePlayButtonState(controlsWrapper);
 
                                     if (newGenreCount >= 2) {
-                                        if (mediaPlayer == null || mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING) {
+                                        if (mediaPlayer == null
+                                                && mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING
+                                                && mediaPlayer.getStatus() != MediaPlayer.Status.PAUSED) {
                                             try {
                                                 System.out.println("[AutoPlay] 2 songs downloaded. Starting playback." +
                                                         "..");
@@ -604,12 +665,21 @@ public class PlayerController extends Application {
                         ".download").get(),
                 currentGenreDownloadedCount.get(), currentGenreTotalFiles);
 
+        boolean isDone = (currentGenreDownloadedCount.get() == currentGenreTotalFiles
+                && currentGenreTotalFiles > 0);
+
         Platform.runLater(() -> {
             try {
                 downloadLabel.textProperty().unbind();
             } catch (Exception ignored) {
             }
             downloadLabel.setText(text);
+
+            if (isDone) {
+                downloadLabel.setStyle("-fx-text-fill: #22c55e;"); // green
+            } else {
+                downloadLabel.setStyle("-fx-text-fill: #ef4444;"); // red
+            }
         });
     }
 
@@ -839,10 +909,9 @@ public class PlayerController extends Application {
         currentTrackIndex++;
 
         if (currentTrackIndex >= playQueue.size()) {
-            System.out.println("[PlayerController] All tracks finished. Stopping playback.");
-            currentTrackIndex = playQueue.size();
-            stopPlayback(progressSlider, leftTime, rightTime, controlsWrapper, downloadLabel);
-            return;
+            System.out.println("[PlayerController] All tracks finished. Reshuffling and looping...");
+            java.util.Collections.shuffle(playQueue);  // phir se shuffle
+            currentTrackIndex = 0;
         }
 
         playTrack(
