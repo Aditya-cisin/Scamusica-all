@@ -12,6 +12,7 @@ module com.musicplayer.scamusica {
     requires com.fasterxml.jackson.annotation;
     requires com.google.gson;
     requires java.desktop;
+    requires java.prefs;
 
     exports com.musicplayer.scamusica;
     /*exports com.musicplayer.scamusica.manager;
