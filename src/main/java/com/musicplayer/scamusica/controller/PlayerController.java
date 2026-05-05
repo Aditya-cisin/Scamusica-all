@@ -6,6 +6,7 @@ import com.musicplayer.scamusica.service.DownloadManager;
 import com.musicplayer.scamusica.service.PlaylistApiService;
 import com.musicplayer.scamusica.ui.*;
 
+import com.musicplayer.scamusica.util.AppLogger;
 import com.musicplayer.scamusica.util.CryptoUtil;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -32,9 +33,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
@@ -52,10 +52,12 @@ public class PlayerController extends Application {
     private VBox playlistDropdownCard;
     private HBox playlistPill;
 
+    private String currentPlaylistName;
+
     private static final String PREF_VOLUME = "player_volume";
     private final Preferences prefs = Preferences.userNodeForPackage(PlayerController.class);
 
-    private final List<PlaylistTrack> playQueue = new ArrayList<>();
+    private final List<PlaylistTrack> playQueue = Collections.synchronizedList(new ArrayList<>());
     private int currentTrackIndex = 0;
 
     private ImageView albumImageView;
@@ -78,8 +80,17 @@ public class PlayerController extends Application {
     private final AtomicInteger currentGenreDownloadedCount = new AtomicInteger(0);
     private volatile double currentFileProgressFraction = 0.0;
 
+    private ScheduledExecutorService schedular;
+    private BlockingQueue<Runnable> operationQueue = new LinkedBlockingQueue<>();
+    private volatile boolean running = true;
+    private List<Integer> lastServerIds = new ArrayList<>();
+
     @Override
     public void start(Stage primaryStage) {
+
+        AppLogger.init();
+        AppLogger.log("[APP] Player started");
+
         Button headphonesButton = sidebarUtil.createIconButton("fas-headphones");
         List<Button> sidebarButtons = Arrays.asList(headphonesButton);
         sidebarUtil.addSidebarLogic(sidebarButtons, headphonesButton);
@@ -127,12 +138,12 @@ public class PlayerController extends Application {
                 tempList = new ArrayList<>(apiPlaylists);
             } else {
                 tempList = tempPlaylist;
-                System.out.println("[PlayerController] API returned empty list, using fallback playlists.");
+                AppLogger.log("[PlayerController] API returned empty list, using fallback playlists.");
             }
         } catch (Exception e) {
             e.printStackTrace();
             tempList = tempPlaylist;
-            System.out.println("[PlayerController] Error while fetching playlists, using fallback playlists.");
+            AppLogger.log("[PlayerController] Error while fetching playlists, using fallback playlists.");
         }
 
         final javafx.collections.ObservableList<String> playlistViewItems = FXCollections.observableArrayList();
@@ -224,6 +235,7 @@ public class PlayerController extends Application {
                 img,
                 this::hideDropdown,
                 selectedPlaylistName -> {
+                    currentPlaylistName = selectedPlaylistName;
                     try {
                         loadPlaylistAndStart(
                                 selectedPlaylistName,
@@ -249,7 +261,14 @@ public class PlayerController extends Application {
         primaryStage.setScene(scene);
 
         primaryStage.setOnCloseRequest(event -> {
-            System.out.println("[PlayerController] Closing application...");
+            AppLogger.log("[APP] Closing application");
+            AppLogger.close();
+
+            running = false;
+
+            if (schedular != null) {
+                schedular.shutdownNow();
+            }
 
             if (mediaPlayer != null) {
                 try {
@@ -294,6 +313,7 @@ public class PlayerController extends Application {
                 }
             });
 
+            currentPlaylistName = playlistCurrent[0];
             try {
                 loadPlaylistAndStart(
                         playlistCurrent[0],
@@ -311,6 +331,140 @@ public class PlayerController extends Application {
                 throw new RuntimeException(e);
             }
         });
+
+        // 🔥 START QUEUE WORKER
+        new Thread(() -> {
+            while (running) {
+                try {
+                    Runnable task = operationQueue.take();
+                    task.run();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+
+        // 🔥 START SCHEDULER
+        schedular = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+
+        schedular.scheduleAtFixedRate(() -> {
+            operationQueue.add(() -> {
+                try {
+                    syncWithServer();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }, 30, 60, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    private void syncWithServer() {
+        AppLogger.log("[SYNC] Checking server updates for playlist: " + currentPlaylistName);
+        try {
+            PlaylistApiService api = new PlaylistApiService();
+
+            String currentPlaylist = currentPlaylistName;
+            if (currentPlaylist == null) return;
+
+            List<PlaylistTrack> serverTracks = api.fetchTracksForGenre(currentPlaylist);
+            AppLogger.log("[SYNC] Server tracks count: " + serverTracks.size());
+
+            if (serverTracks == null) return;
+
+
+            List<Integer> serverIds = serverTracks.stream()
+                    .map(PlaylistTrack::getId)
+                    .collect(Collectors.toList());
+
+            if (serverIds.equals(lastServerIds)) {
+                AppLogger.log("[SYNC] No changes detected");
+                return; // no change
+            }
+
+            lastServerIds = new ArrayList<>(serverIds);
+
+            List<Integer> localIds;
+            synchronized (playQueue) {
+                localIds = playQueue.stream()
+                        .map(PlaylistTrack::getId)
+                        .collect(Collectors.toList());
+            }
+
+            java.util.Set<Integer> toAdd = new java.util.HashSet<>(serverIds);
+            toAdd.removeAll(localIds);
+
+            java.util.Set<Integer> toDelete = new java.util.HashSet<>(localIds);
+            toDelete.removeAll(serverIds);
+
+            AppLogger.log("[SYNC] To Add: " + toAdd);
+            AppLogger.log("[SYNC] To Delete: " + toDelete);
+
+            // ✅ ADD
+            for (PlaylistTrack t : serverTracks) {
+                if (toAdd.contains(t.getId())) {
+                    boolean exists;
+                    synchronized (playQueue) {
+                        exists = playQueue.stream()
+                                .anyMatch(x -> x.getId() == t.getId());
+                    }
+
+                    if (!exists) {
+                        playQueue.add(t);
+                    }
+
+                    if (downloadManager != null) {
+                        downloadManager.queueDownload(t.getId());
+                    }
+                }
+            }
+
+            // ✅ DELETE
+            for (Integer id : toDelete) {
+
+                PlaylistTrack current = null;
+
+                if (currentTrackIndex < playQueue.size()) {
+                    current = playQueue.get(currentTrackIndex);
+                }
+
+                playQueue.removeIf(track -> track.getId() == id);
+
+                deleteSongFile(id);
+
+                if (current != null && current.getId() == id) {
+                    Platform.runLater(() -> {
+                        try {
+                            playNextTrack(null, null, null, null, null, null, null, null);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteSongFile(int id) {
+        String baseDownloadDir = System.getProperty("user.home")
+                + File.separator + ".scamusica"
+                + File.separator + "downloads";
+
+        File baseDir = new File(baseDownloadDir);
+
+        File[] folders = baseDir.listFiles();
+        if (folders == null) return;
+
+        for (File folder : folders) {
+            File file = new File(folder, "song-" + id + ".dat");
+            if (file.exists()) {
+                AppLogger.log("[DELETE] Removing file for ID: " + id);
+                file.delete();
+            }
+        }
     }
 
     private void hideDropdown(VBox dropdownCard) {
@@ -359,7 +513,7 @@ public class PlayerController extends Application {
             File baseDir = new File(baseDownloadDir);
             if (!baseDir.exists()) {
                 boolean created = baseDir.mkdirs();
-                System.out.println("[PlayerController] Base dir created: " + created);
+                AppLogger.log("[PlayerController] Base dir created: " + created);
             }
 
             // Mac installer permissions fix
@@ -466,7 +620,7 @@ public class PlayerController extends Application {
             File genreDir = new File(genreFolderPath);
             if (!genreDir.exists()) {
                 boolean created = genreDir.mkdirs();
-                System.out.println("[PlayerController] Genre folder created: " + created + " at " + genreFolderPath);
+                AppLogger.log("[PlayerController] Genre folder created: " + created + " at " + genreFolderPath);
             }
             genreDir.setWritable(true, false);
 
@@ -499,7 +653,7 @@ public class PlayerController extends Application {
             setGenreSwitchEnabled(true);
 
             if (!downloadSeq.isEmpty()) {
-                downloadManager = new DownloadManager(downloadSeq, genreFolderPath,
+                downloadManager = new DownloadManager(genreFolderPath,
                         new DownloadManager.DownloadListener() {
                             @Override
                             public void onDownloadStarted(int songId, File outputFile) {
@@ -547,13 +701,13 @@ public class PlayerController extends Application {
 
                                     updateGenreDownloadLabel(downloadLabel);
                                     updatePlayButtonState(controlsWrapper);
-
+                                    AppLogger.log("[AUTO-PLAY] Downloaded count: " + newGenreCount);
                                     if (newGenreCount >= 2) {
-                                        if (mediaPlayer == null
-                                                && mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING
-                                                && mediaPlayer.getStatus() != MediaPlayer.Status.PAUSED) {
+                                        if (mediaPlayer == null ||
+                                                (mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING &&
+                                                        mediaPlayer.getStatus() != MediaPlayer.Status.PAUSED)) {
                                             try {
-                                                System.out.println("[AutoPlay] 2 songs downloaded. Starting playback." +
+                                                AppLogger.log("[AutoPlay] 2 songs downloaded. Starting playback." +
                                                         "..");
                                                 playTrack(
                                                         albumHeading,
@@ -587,14 +741,14 @@ public class PlayerController extends Application {
 
                             @Override
                             public void onDownloadFailed(int songId, Exception ex) {
-                                System.out.println("[PlayerController] Download failed id=" + songId + " -> " + ex.getMessage());
+                                AppLogger.log("[PlayerController] Download failed id=" + songId + " -> " + ex.getMessage());
                                 currentFileProgressFraction = 0.0;
                                 updateGenreDownloadLabel(downloadLabel);
                             }
 
                             @Override
                             public void onAllDownloadsFinished() {
-                                System.out.println("[PlayerController] All downloads finished for genre: " + playlistName);
+                                AppLogger.log("[PlayerController] All downloads finished for genre: " + playlistName);
                                 setGenreSwitchEnabled(true);
 
                                 recomputeGlobalCountAndUpdateUI();
@@ -606,7 +760,7 @@ public class PlayerController extends Application {
 
                             @Override
                             public void onCancelled() {
-                                System.out.println("[PlayerController] Downloads cancelled for genre: " + playlistName);
+                                AppLogger.log("[PlayerController] Downloads cancelled for genre: " + playlistName);
                                 setGenreSwitchEnabled(true);
                                 recomputeGlobalCountAndUpdateUI();
                                 int newGenreCount = countExistingInGenreFolder(genreFolderPath);
@@ -616,6 +770,9 @@ public class PlayerController extends Application {
                         });
 
                 downloadManager.start();
+                for (Integer id : downloadSeq) {
+                    downloadManager.queueDownload(id);
+                }
             } else {
                 currentFileProgressFraction = 0.0;
                 updateGenreDownloadLabel(downloadLabel);
@@ -701,6 +858,7 @@ public class PlayerController extends Application {
         }
 
         PlaylistTrack track = playQueue.get(currentTrackIndex);
+        AppLogger.log("[PLAYER][PLAY] " + track.getTitle() + " (ID: " + track.getId() + ")");
 
         if (albumImageView != null) {
             String albumImgUrl = track.getAlbumImageUrl();
@@ -738,7 +896,7 @@ public class PlayerController extends Application {
             safeUrl += "?ext=.mp3";
         }
 
-        System.out.println("FIXED MEDIA URL = " + safeUrl);
+        AppLogger.log("FIXED MEDIA URL = " + safeUrl);
 
         try {
             String baseDownloadDir = System.getProperty("user.home")
@@ -750,11 +908,11 @@ public class PlayerController extends Application {
             File encryptedFile = new File(baseDownloadDir + File.separator + genreFolder,
                     "song-" + track.getId() + ".dat");
 
-            System.out.println("Encrypted file path: " + encryptedFile.getAbsolutePath());
-            System.out.println("File exists: " + encryptedFile.exists());
+            AppLogger.log("Encrypted file path: " + encryptedFile.getAbsolutePath());
+            AppLogger.log("File exists: " + encryptedFile.exists());
 
             if (encryptedFile.exists()) {
-
+                AppLogger.log("[PLAYER] Playing from local file: " + encryptedFile.getAbsolutePath());
                 new Thread(() -> {
                     try {
                         File tempFile = decryptToTemp(encryptedFile);
@@ -798,6 +956,7 @@ public class PlayerController extends Application {
         }
 
         Media media = new Media(safeUrl);
+        AppLogger.log("[PLAYER] Streaming from URL: " + safeUrl);
         MediaPlayer newPlayer = new MediaPlayer(media);
 
         attachMediaPlayerHandlers(newPlayer,
@@ -826,7 +985,7 @@ public class PlayerController extends Application {
                                            boolean autoPlay) {
 
         mediaPlayer.setOnError(() -> {
-            System.out.println("Media Player Error: " + mediaPlayer.getError().getMessage());
+            AppLogger.log("Media Player Error: " + mediaPlayer.getError().getMessage());
         });
 
         mediaPlayer.setOnReady(() -> {
@@ -907,9 +1066,9 @@ public class PlayerController extends Application {
                                Label downloadLabel) throws URISyntaxException {
 
         currentTrackIndex++;
-
+        AppLogger.log("[PLAYER] Next track index: " + currentTrackIndex);
         if (currentTrackIndex >= playQueue.size()) {
-            System.out.println("[PlayerController] All tracks finished. Reshuffling and looping...");
+            AppLogger.log("[PlayerController] All tracks finished. Reshuffling and looping...");
             java.util.Collections.shuffle(playQueue);  // phir se shuffle
             currentTrackIndex = 0;
         }
@@ -1097,7 +1256,6 @@ public class PlayerController extends Application {
 
         return tempFile;
     }
-
 
     public static void main(String[] args) {
         launch(args);
