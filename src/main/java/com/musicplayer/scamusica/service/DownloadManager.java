@@ -2,12 +2,14 @@ package com.musicplayer.scamusica.service;
 
 import com.musicplayer.scamusica.manager.SessionManager;
 import com.musicplayer.scamusica.util.ApiClient;
+import com.musicplayer.scamusica.util.AppLogger;
 import com.musicplayer.scamusica.util.Utility;
 
 import java.io.File;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.*;
 
 public class DownloadManager {
 
