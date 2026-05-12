@@ -95,6 +95,7 @@ public class PlayerControls {
         FontIcon forwardIcon = new FontIcon("fas-forward");
         forwardIcon.setIconSize(26);
         Button forwardBtn = new Button("", forwardIcon);
+        forwardBtn.setId("forwardButton");
         forwardBtn.getStyleClass().add("control-icon");
         forwardBtn.getStyleClass().add("small-control");
 
