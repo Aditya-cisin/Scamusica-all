@@ -277,8 +277,8 @@
                            shell: bash
                            run: |
                              KEYTOOL=target/scamusica-runtime/bin/keytool
-                              CACERTS=target/scamusica-runtime/lib/security/cacerts
-                              STORE_PASS=changeit
+                             CACERTS=target/scamusica-runtime/lib/security/cacerts
+                             STORE_PASS=changeit
                               
                               echo "Importing API Certificates..."
                               
