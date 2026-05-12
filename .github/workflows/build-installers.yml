@@ -279,40 +279,40 @@
                              KEYTOOL=target/scamusica-runtime/bin/keytool
                              CACERTS=target/scamusica-runtime/lib/security/cacerts
                              STORE_PASS=changeit
-                              
+                               
                              echo "Importing API Certificates..."
-                              
                              $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt -alias api1 -file certs/api1_fullchain.crt
-                              
                              $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt -alias api2 -file certs/api2_fullchain.crt
-                              
+                               
                              echo "Importing CIS Root CA (ca 9.crt)..."
-                              
+                             # Purana alias delete kar rahe hain agar exit karta ho safe side ke liye
                              $KEYTOOL -delete -alias cis-root -keystore $CACERTS -storepass $STORE_PASS -noprompt || true
-                              
-                             $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt -alias cis-root -file "certs/ca 9.crt"
-                              
+                               
+                             $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt \
+                               -alias cis-root \
+                               -file "certs/ca 9.crt"
+                  
                              echo "Importing NEW Certificates..."
-                              
                              $KEYTOOL -delete -alias new-cert-1 -keystore $CACERTS -storepass $STORE_PASS -noprompt || true
-                              
                              $KEYTOOL -delete -alias new-cert-2 -keystore $CACERTS -storepass $STORE_PASS -noprompt || true
-                              
-                             $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt -alias new-cert-1 -file "certs/ca-10.crt"
-                              
-                             $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt -alias new-cert-2 -file "certs/Fortinet_CA_SSLProxy_new-7.cer"
-                              
+                         
+                             $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt \
+                               -alias new-cert-1 \
+                               -file "certs/ca-10.crt"
+                         
+                             $KEYTOOL -importcert -trustcacerts -keystore $CACERTS -storepass $STORE_PASS -noprompt \
+                               -alias new-cert-2 \
+                               -file "certs/Fortinet_CA_SSLProxy_new-7.cer"
+                               
                              echo "✅ All Certs (API + CIS Root) imported into cacerts"
 
                               - name: Verify certificate in cacerts
-                                working-directory: ${{ env.PROJECT_PATH }}
                                 shell: bash
                                 run: |
                                   echo "Verifying certificates in truststore:"
                                   # Windows par bhi keytool binary runtime ke bin folder se uthani hogi
-          
                                   target/scamusica-runtime/bin/keytool -list -keystore target/scamusica-runtime/lib/security/cacerts -storepass changeit | grep -i "cis"
-          
+                      
                               - name: Verify VLC folder
                                 working-directory: ${{ env.PROJECT_PATH }}
                                 shell: bash
