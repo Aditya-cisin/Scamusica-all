@@ -8,6 +8,7 @@ import com.musicplayer.scamusica.ui.*;
 
 import com.musicplayer.scamusica.util.AppLogger;
 import com.musicplayer.scamusica.util.CryptoUtil;
+import com.musicplayer.scamusica.util.PlaybackHistoryLogger;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -18,11 +19,12 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
+
+import uk.co.caprica.vlcj.player.base.MediaPlayer;
+import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
+import uk.co.caprica.vlcj.player.component.AudioPlayerComponent;
 
 import javax.crypto.CipherInputStream;
 import java.io.File;
@@ -41,7 +43,10 @@ import java.util.stream.Collectors;
 
 public class PlayerController extends Application {
 
-    private MediaPlayer mediaPlayer;
+    private MediaPlayer vlcPlayer;
+    private AudioPlayerComponent vlcPlayerComponent;
+    private boolean vlcHandlersAttached = false;
+    private boolean userPaused = false;
 
     private final PlayerSidebar sidebarUtil = new PlayerSidebar();
     private final PlayerHeader headerUtil = new PlayerHeader();
@@ -91,6 +96,9 @@ public class PlayerController extends Application {
         AppLogger.init();
         AppLogger.log("[APP] Player started");
 
+        vlcPlayerComponent = new AudioPlayerComponent();
+        vlcPlayer = vlcPlayerComponent.mediaPlayer();
+
         Button headphonesButton = sidebarUtil.createIconButton("fas-headphones");
         List<Button> sidebarButtons = Arrays.asList(headphonesButton);
         sidebarUtil.addSidebarLogic(sidebarButtons, headphonesButton);
@@ -107,18 +115,15 @@ public class PlayerController extends Application {
         BorderPane header = headerUtil.createHeader(leftMeta, logoView, rightMeta);
 
 
-
         Label albumHeading = albumUtil.createAlbumHeading();
 
         // New Code
-
         Label currentStyleLabel = new Label();
         currentStyleLabel.textProperty().bind(
                 LanguageManager.createStringBinding("label.currentStyle")
         );
-//        currentStyleLabel.setText("Current Style");
-        currentStyleLabel.getStyleClass().add("section-heading-styles");
 
+        currentStyleLabel.getStyleClass().add("section-heading-styles");
         // New Code
 
         ImageView img = albumUtil.createAlbumImage(getClass());
@@ -169,10 +174,9 @@ public class PlayerController extends Application {
         sequencesLabel.getStyleClass().add("section-heading-sequences");
 
         // New Code
-
         VBox rightColumn = new VBox(8);
         rightColumn.getChildren().addAll(sequencesLabel, playlistHeaderBox);
-//        rightColumn.getChildren().addAll(playlistHeaderBox);
+
         HBox rightWrapper = new HBox(rightColumn);
         rightWrapper.setAlignment(Pos.TOP_RIGHT);
 
@@ -270,10 +274,9 @@ public class PlayerController extends Application {
                 schedular.shutdownNow();
             }
 
-            if (mediaPlayer != null) {
+            if (vlcPlayer != null) {
                 try {
-                    mediaPlayer.stop();
-                    mediaPlayer.dispose();
+                    vlcPlayer.controls().stop();
                 } catch (Exception ignored) {
                 }
             }
@@ -301,16 +304,17 @@ public class PlayerController extends Application {
             // Saved volume load karo, default 85
             double savedVolume = prefs.getDouble(PREF_VOLUME, 85.0);
             volumeSlider.setValue(savedVolume);
-            if (mediaPlayer != null) {
-                mediaPlayer.setVolume(savedVolume / 100.0);
-            }
+            vlcPlayer.audio().setVolume((int) savedVolume);
 
             // Volume change hone par save karo
             volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
                 prefs.putDouble(PREF_VOLUME, newVal.doubleValue());
-                if (mediaPlayer != null) {
-                    mediaPlayer.setVolume(newVal.doubleValue() / 100.0);
-                }
+                vlcPlayer.audio().setVolume(newVal.intValue());
+            });
+
+            progressSlider.setOnMouseReleased(e -> {
+                float pos = (float) (progressSlider.getValue() / 100.0);
+                vlcPlayer.controls().setPosition(pos);
             });
 
             currentPlaylistName = playlistCurrent[0];
@@ -327,8 +331,46 @@ public class PlayerController extends Application {
                         downloadLabel,
                         true
                 );
+
+                setupBigPlayBehaviour(
+                        albumHeading,
+                        titleCentered,
+                        controlsWrapper,
+                        progressSlider,
+                        leftTime,
+                        rightTime,
+                        bottomBar,
+                        downloadLabel
+                );
+
             } catch (URISyntaxException e) {
                 throw new RuntimeException(e);
+            }
+
+            Button forwardBtn = (Button) controlsWrapper.lookup("#forwardButton");
+
+            if (forwardBtn != null) {
+
+                forwardBtn.setOnAction(e -> {
+
+                    try {
+
+                        long current = vlcPlayer.status().time();
+
+                        long duration = vlcPlayer.status().length();
+
+                        long target = current + 10000;
+
+                        if (duration > 0 && target > duration) {
+                            target = duration;
+                        }
+
+                        vlcPlayer.controls().setTime(target);
+
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                });
             }
         });
 
@@ -581,7 +623,8 @@ public class PlayerController extends Application {
                 Platform.runLater(() -> {
                     try {
                         albumImageView.setImage(new Image(firstImgUrl, true));
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 });
             }
         }
@@ -644,12 +687,6 @@ public class PlayerController extends Application {
                 }
             }
 
-//            if (needDownload) {
-//                setGenreSwitchEnabled(false);
-//            } else {
-//                setGenreSwitchEnabled(true);
-//            }
-
             setGenreSwitchEnabled(true);
 
             if (!downloadSeq.isEmpty()) {
@@ -658,7 +695,6 @@ public class PlayerController extends Application {
                             @Override
                             public void onDownloadStarted(int songId, File outputFile) {
                                 currentFileProgressFraction = 0.0;
-//                                setGenreSwitchEnabled(false);
 
                                 updatePlayButtonState(controlsWrapper);
 
@@ -703,9 +739,7 @@ public class PlayerController extends Application {
                                     updatePlayButtonState(controlsWrapper);
                                     AppLogger.log("[AUTO-PLAY] Downloaded count: " + newGenreCount);
                                     if (newGenreCount >= 2) {
-                                        if (mediaPlayer == null ||
-                                                (mediaPlayer.getStatus() != MediaPlayer.Status.PLAYING &&
-                                                        mediaPlayer.getStatus() != MediaPlayer.Status.PAUSED)) {
+                                        if (!vlcPlayer.status().isPlaying() && !userPaused) {
                                             try {
                                                 AppLogger.log("[AutoPlay] 2 songs downloaded. Starting playback." +
                                                         "..");
@@ -858,6 +892,9 @@ public class PlayerController extends Application {
         }
 
         PlaylistTrack track = playQueue.get(currentTrackIndex);
+        //New Code for generating the file
+        PlaybackHistoryLogger.logSong(track);
+        // New Code for generating the file
         AppLogger.log("[PLAYER][PLAY] " + track.getTitle() + " (ID: " + track.getId() + ")");
 
         if (albumImageView != null) {
@@ -881,13 +918,11 @@ public class PlayerController extends Application {
 
         titleLabel.setText(track.getTitle());
 
-        if (mediaPlayer != null) {
+        if (vlcPlayer != null) {
             try {
-                mediaPlayer.stop();
-                mediaPlayer.dispose();
+                vlcPlayer.controls().stop();
             } catch (Exception ignored) {
             }
-            mediaPlayer = null;
         }
 
         String safeUrl = encodeMediaUrl(track.getUrl());
@@ -925,21 +960,25 @@ public class PlayerController extends Application {
                         final String finalUrl = localUrl;
 
                         Platform.runLater(() -> {
-                            Media mediaLocal = new Media(finalUrl);
-                            MediaPlayer newPlayer = new MediaPlayer(mediaLocal);
 
-                            attachMediaPlayerHandlers(newPlayer,
-                                    albumHeading,
-                                    titleLabel,
-                                    progressSlider,
-                                    leftTime,
-                                    rightTime,
-                                    controlsWrapper,
-                                    bottomBar,
-                                    downloadLabel,
-                                    autoPlay);
+                            vlcPlayer.media().play(tempFile.getAbsolutePath());
 
-                            mediaPlayer = newPlayer;
+                            if (!vlcHandlersAttached) {
+
+                                attachVlcHandlers(
+                                        albumHeading,
+                                        titleLabel,
+                                        progressSlider,
+                                        leftTime,
+                                        rightTime,
+                                        controlsWrapper,
+                                        bottomBar,
+                                        downloadLabel,
+                                        autoPlay
+                                );
+
+                                vlcHandlersAttached = true;
+                            }
                         });
 
                     } catch (Exception e) {
@@ -955,103 +994,110 @@ public class PlayerController extends Application {
             e.printStackTrace();
         }
 
-        Media media = new Media(safeUrl);
         AppLogger.log("[PLAYER] Streaming from URL: " + safeUrl);
-        MediaPlayer newPlayer = new MediaPlayer(media);
 
-        attachMediaPlayerHandlers(newPlayer,
-                albumHeading,
-                titleLabel,
-                progressSlider,
-                leftTime,
-                rightTime,
-                controlsWrapper,
-                bottomBar,
-                downloadLabel,
-                autoPlay);
+        vlcPlayer.media().play(safeUrl);
 
-        mediaPlayer = newPlayer;
-    }
+        if (!vlcHandlersAttached) {
 
-    private void attachMediaPlayerHandlers(MediaPlayer mediaPlayer,
-                                           Label albumHeading,
-                                           Label titleLabel,
-                                           Slider progressSlider,
-                                           Label leftTime,
-                                           Label rightTime,
-                                           HBox controlsWrapper,
-                                           HBox bottomBar,
-                                           Label downloadLabel,
-                                           boolean autoPlay) {
-
-        mediaPlayer.setOnError(() -> {
-            AppLogger.log("Media Player Error: " + mediaPlayer.getError().getMessage());
-        });
-
-        mediaPlayer.setOnReady(() -> {
-            Duration mediaDuration = mediaPlayer.getMedia().getDuration();
-            int durationSeconds = (int) Math.max(1, mediaDuration.toSeconds());
-
-            controlsUtil.setupMediaBindingsWithDuration(
-                    mediaPlayer,
-                    progressSlider,
-                    leftTime,
-                    rightTime,
-                    durationSeconds
-            );
-
-            controlsUtil.setupControlEvents(
-                    controlsWrapper,
-                    mediaPlayer,
-                    progressSlider,
-                    leftTime,
-                    rightTime,
-                    controlsUtil.getVolumeSlider(bottomBar),
-                    durationSeconds,
-                    downloadLabel
-            );
-
-            setupBigPlayBehaviour(
+            attachVlcHandlers(
                     albumHeading,
                     titleLabel,
-                    controlsWrapper,
                     progressSlider,
                     leftTime,
                     rightTime,
+                    controlsWrapper,
                     bottomBar,
-                    downloadLabel
+                    downloadLabel,
+                    autoPlay
             );
 
-            mediaPlayer.setOnEndOfMedia(() -> {
-                try {
-                    playNextTrack(
-                            albumHeading,
-                            titleLabel,
-                            progressSlider,
-                            leftTime,
-                            rightTime,
-                            controlsWrapper,
-                            bottomBar,
-                            downloadLabel
-                    );
-                } catch (URISyntaxException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            vlcHandlersAttached = true;
+        }
+    }
 
-            FontIcon bigIcon = controlsUtil.getBigPlayIcon(controlsWrapper);
 
-            if (autoPlay) {
-                if (bigIcon != null) {
-                    bigIcon.setIconLiteral("fas-pause");
-                }
-                mediaPlayer.play();
-            } else {
-                if (bigIcon != null) {
-                    bigIcon.setIconLiteral("fas-play");
-                }
-                mediaPlayer.pause();
-                mediaPlayer.seek(Duration.ZERO);
+    private void attachVlcHandlers(
+            Label albumHeading,
+            Label titleLabel,
+            Slider progressSlider,
+            Label leftTime,
+            Label rightTime,
+            HBox controlsWrapper,
+            HBox bottomBar,
+            Label downloadLabel,
+            boolean autoPlay
+    ) {
+
+        vlcPlayer.events().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
+
+            @Override
+            public void playing(MediaPlayer mediaPlayer) {
+                Platform.runLater(() -> {
+                    FontIcon bigIcon = controlsUtil.getBigPlayIcon(controlsWrapper);
+                    if (bigIcon != null) {
+                        bigIcon.setIconLiteral("fas-pause");
+                    }
+                });
+            }
+
+            @Override
+            public void paused(MediaPlayer mediaPlayer) {
+                Platform.runLater(() -> {
+                    FontIcon bigIcon = controlsUtil.getBigPlayIcon(controlsWrapper);
+                    if (bigIcon != null) {
+                        bigIcon.setIconLiteral("fas-play");
+                    }
+                });
+            }
+
+            @Override
+            public void stopped(MediaPlayer mediaPlayer) {
+                Platform.runLater(() -> {
+                    FontIcon bigIcon = controlsUtil.getBigPlayIcon(controlsWrapper);
+                    if (bigIcon != null) {
+                        bigIcon.setIconLiteral("fas-play");
+                    }
+                });
+            }
+
+            @Override
+            public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
+                Platform.runLater(() -> {
+
+                    long duration = mediaPlayer.status().length();
+
+                    if (duration > 0) {
+
+                        double progress = (double) newTime / duration;
+
+                        progressSlider.setValue(progress * 100);
+
+                        leftTime.setText(formatTime(newTime / 1000));
+
+                        rightTime.setText("-" + formatTime((duration - newTime) / 1000));
+                    }
+                });
+            }
+
+            @Override
+            public void finished(MediaPlayer mediaPlayer) {
+                Platform.runLater(() -> {
+                    try {
+                        playNextTrack(
+                                albumHeading,
+                                titleLabel,
+                                progressSlider,
+                                leftTime,
+                                rightTime,
+                                controlsWrapper,
+                                bottomBar,
+                                downloadLabel
+                        );
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
             }
         });
     }
@@ -1069,7 +1115,7 @@ public class PlayerController extends Application {
         AppLogger.log("[PLAYER] Next track index: " + currentTrackIndex);
         if (currentTrackIndex >= playQueue.size()) {
             AppLogger.log("[PlayerController] All tracks finished. Reshuffling and looping...");
-            java.util.Collections.shuffle(playQueue);  // phir se shuffle
+            java.util.Collections.shuffle(playQueue);
             currentTrackIndex = 0;
         }
 
@@ -1114,7 +1160,7 @@ public class PlayerController extends Application {
                 return;
             }
 
-            if (mediaPlayer == null || currentTrackIndex >= playQueue.size() || currentTrackIndex < 0) {
+            if (vlcPlayer == null || currentTrackIndex >= playQueue.size() || currentTrackIndex < 0) {
                 currentTrackIndex = 0;
                 try {
                     playTrack(
@@ -1134,13 +1180,14 @@ public class PlayerController extends Application {
                 return;
             }
 
-            MediaPlayer.Status status = mediaPlayer.getStatus();
-            if (status == MediaPlayer.Status.PLAYING) {
-                mediaPlayer.pause();
+            if (vlcPlayer.status().isPlaying()) {
+                vlcPlayer.controls().pause();
+                userPaused = true;
                 bigIcon.setIconLiteral("fas-play");
                 bigIcon.setIconColor(javafx.scene.paint.Color.WHITE);
             } else {
-                mediaPlayer.play();
+                vlcPlayer.controls().play();
+                userPaused = false;
                 bigIcon.setIconLiteral("fas-pause");
                 bigIcon.setIconColor(javafx.scene.paint.Color.WHITE);
             }
@@ -1153,13 +1200,11 @@ public class PlayerController extends Application {
                               HBox controlsWrapper,
                               Label downloadLabel) {
 
-        if (mediaPlayer != null) {
+        if (vlcPlayer != null) {
             try {
-                mediaPlayer.stop();
-                mediaPlayer.dispose();
+                vlcPlayer.controls().stop();
             } catch (Exception ignored) {
             }
-            mediaPlayer = null;
         }
 
         if (leftTime != null) {
@@ -1255,6 +1300,12 @@ public class PlayerController extends Application {
         }
 
         return tempFile;
+    }
+
+    private String formatTime(long seconds) {
+        long m = seconds / 60;
+        long s = seconds % 60;
+        return String.format("%d:%02d", m, s);
     }
 
     public static void main(String[] args) {
