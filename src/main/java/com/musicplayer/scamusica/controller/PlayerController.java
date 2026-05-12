@@ -96,6 +96,10 @@ public class PlayerController extends Application {
         AppLogger.init();
         AppLogger.log("[APP] Player started");
 
+        String appDir = System.getProperty("user.dir");
+        String vlcPath = appDir + File.separator + "vlc";
+        System.setProperty("jna.library.path", vlcPath);
+
         vlcPlayerComponent = new AudioPlayerComponent();
         vlcPlayer = vlcPlayerComponent.mediaPlayer();
 
