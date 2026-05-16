@@ -184,7 +184,26 @@ public class CodeVerificationController extends Application {
                     new Thread(() -> {
                         try {
                             // Create HTTP client
-                            client = HttpClient.newHttpClient();
+                          //  client = HttpClient.newHttpClient();
+
+                            try {
+                                javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory
+                                        .getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+                                java.security.KeyStore ks = java.security.KeyStore.getInstance("JKS");
+                                java.io.File cacerts = new java.io.File(
+                                        System.getProperty("java.home") + "/lib/security/cacerts");
+                                try (java.io.FileInputStream fis = new java.io.FileInputStream(cacerts)) {
+                                    ks.load(fis, "changeit".toCharArray());
+                                }
+                                tmf.init(ks);
+                                javax.net.ssl.SSLContext sslContext = javax.net.ssl.SSLContext.getInstance("TLS");
+                                sslContext.init(null, tmf.getTrustManagers(), null);
+                                client = HttpClient.newBuilder().sslContext(sslContext).build();
+                            } catch (Exception sslEx) {
+                                // fallback — default client
+                                client = HttpClient.newHttpClient();
+                            }
+                            
                             // system identification id for no cloning
                             String deviceId = DeviceFingerprint.getFingerprint();
                             // JSON body
