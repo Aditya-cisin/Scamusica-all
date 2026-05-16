@@ -1,8 +1,8 @@
 package com.musicplayer.scamusica.service;
+
+import com.musicplayer.scamusica.util.ApiClient;
 import com.musicplayer.scamusica.util.Utility;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.function.Consumer;
 
 public class ConnectivityMonitor {
@@ -43,20 +43,12 @@ public class ConnectivityMonitor {
 
     private Status checkApiConnectivity() {
         try {
-            URL url = new URL(Utility.BASE_URL.get());
-            HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            con.setRequestMethod("GET");
-            con.setConnectTimeout(2000);
-            con.setReadTimeout(2000);
-            con.connect();
-
-            int code = con.getResponseCode();
-            return (code >= 200 && code < 500)
-                    ? Status.ONLINE
-                    : Status.OFFLINE;
-
+            // ApiClient use karo — yeh bundled JRE ke certs use karta hai
+            // isliye Windows pe bhi SSL sahi kaam karega
+            ApiClient.get(Utility.BASE_URL.get(), null);
+            return Status.ONLINE;
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("[ConnectivityMonitor] Connectivity check failed: " + e.getClass().getSimpleName());
             return Status.OFFLINE;
         }
     }
