@@ -40,6 +40,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
+import com.musicplayer.scamusica.util.OfflineCache;
 
 public class PlayerController extends Application {
 
@@ -97,7 +98,9 @@ public class PlayerController extends Application {
         AppLogger.log("[APP] Player started");
 
         String appDir = System.getProperty("user.dir");
+
         String vlcPath = appDir + File.separator + "vlc";
+
         System.setProperty("jna.library.path", vlcPath);
 
         vlcPlayerComponent = new AudioPlayerComponent();
@@ -151,8 +154,15 @@ public class PlayerController extends Application {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            tempList = tempPlaylist;
-            AppLogger.log("[PlayerController] Error while fetching playlists, using fallback playlists.");
+            AppLogger.log("[PlayerController] API failed, checking offline cache...");
+            List<String> cached = OfflineCache.loadPlaylistTitles();
+            if (!cached.isEmpty()) {
+                tempList = cached;
+                AppLogger.log("[PlayerController] Using cached playlists: " + cached.size());
+            } else {
+                tempList = tempPlaylist; // hardcoded fallback
+                AppLogger.log("[PlayerController] No cache, using hardcoded fallback.");
+            }
         }
 
         final javafx.collections.ObservableList<String> playlistViewItems = FXCollections.observableArrayList();
@@ -942,7 +952,11 @@ public class PlayerController extends Application {
                     + File.separator + ".scamusica"
                     + File.separator + "downloads";
 
-            String genreFolder = track.getFolderTitle().replaceAll("\\s+", "_");
+          //  String genreFolder = track.getFolderTitle().replaceAll("\\s+", "_");// folderTitle nahi, currentPlaylistName use karo
+          // kyunki download is folder mein hota hai
+            String genreFolder = (currentPlaylistName != null)
+                    ? currentPlaylistName.replaceAll("\\s+", "_")
+                    : track.getFolderTitle().replaceAll("\\s+", "_");
 
             File encryptedFile = new File(baseDownloadDir + File.separator + genreFolder,
                     "song-" + track.getId() + ".dat");
