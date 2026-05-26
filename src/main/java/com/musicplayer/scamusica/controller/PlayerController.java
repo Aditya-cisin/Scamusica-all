@@ -40,6 +40,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
+
 import com.musicplayer.scamusica.util.OfflineCache;
 
 public class PlayerController extends Application {
@@ -51,6 +52,10 @@ public class PlayerController extends Application {
     private AudioPlayerComponent vlcPlayerComponent;
     private boolean vlcHandlersAttached = false;
     private boolean userPaused = false;
+
+    private MediaPlayerEventAdapter currentVlcListener = null;
+    private File currentTempFile = null;
+    private Thread queueWorkerThread = null;
 
     private final PlayerSidebar sidebarUtil = new PlayerSidebar();
     private final PlayerHeader headerUtil = new PlayerHeader();
@@ -298,6 +303,11 @@ public class PlayerController extends Application {
 
             running = false;
 
+            // ✅ FIX: Queue worker ko interrupt karo
+            if (queueWorkerThread != null) {
+                queueWorkerThread.interrupt();
+            }
+
             if (schedular != null) {
                 schedular.shutdownNow();
             }
@@ -412,16 +422,22 @@ public class PlayerController extends Application {
         });
 
         // 🔥 START QUEUE WORKER
-        new Thread(() -> {
+        queueWorkerThread = new Thread(() -> {
             while (running) {
                 try {
                     Runnable task = operationQueue.take();
                     task.run();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-        }).start();
+        });
+
+        queueWorkerThread.setDaemon(true);
+        queueWorkerThread.start();
 
 
         // 🔥 START SCHEDULER
@@ -611,37 +627,17 @@ public class PlayerController extends Application {
                             );
 
                             // 🔥 SAME POSITION resume
-                            new Thread(() -> {
-
-                                try {
-
-                                    Thread.sleep(1500);
-
-                                    Platform.runLater(() -> {
-
-                                        try {
-
-                                            long savedTime =
-                                                    adPlayer.getSavedSongTime();
-
-                                            AppLogger.log(
-                                                    "[PLAYER] Restoring position: "
-                                                            + savedTime
-                                            );
-
-                                            vlcPlayer.controls()
-                                                    .setTime(savedTime);
-
-                                        } catch (Exception e) {
-                                            e.printStackTrace();
-                                        }
-                                    });
-
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                }
-
-                            }).start();
+                            schedular.schedule(() -> {
+                                Platform.runLater(() -> {
+                                    try {
+                                        long savedTime = adPlayer.getSavedSongTime();
+                                        AppLogger.log("[PLAYER] Restoring position: " + savedTime);
+                                        vlcPlayer.controls().setTime(savedTime);
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    }
+                                });
+                            }, 1500, TimeUnit.MILLISECONDS);
                         }
 
                     } catch (Exception e) {
@@ -847,6 +843,7 @@ public class PlayerController extends Application {
             if (firstImgUrl != null && !firstImgUrl.trim().isEmpty()) {
                 Platform.runLater(() -> {
                     try {
+                        albumImageView.setImage(null);
                         albumImageView.setImage(new Image(firstImgUrl, true));
                     } catch (Exception ignored) {
                     }
@@ -1122,7 +1119,19 @@ public class PlayerController extends Application {
         // New Code for generating the file
         AppLogger.log("[PLAYER][PLAY] " + track.getTitle() + " (ID: " + track.getId() + ")");
 
+//        if (albumImageView != null) {
+//            String albumImgUrl = track.getAlbumImageUrl();
+//            if (albumImgUrl != null && !albumImgUrl.trim().isEmpty()) {
+//                try {
+//                    albumImageView.setImage(new Image(albumImgUrl, true));
+//                } catch (Exception ex) {
+//                    ex.printStackTrace();
+//                }
+//            }
+//        }
+
         if (albumImageView != null) {
+            albumImageView.setImage(null);
             String albumImgUrl = track.getAlbumImageUrl();
             if (albumImgUrl != null && !albumImgUrl.trim().isEmpty()) {
                 try {
@@ -1163,8 +1172,9 @@ public class PlayerController extends Application {
                     + File.separator + ".scamusica"
                     + File.separator + "downloads";
 
-          //  String genreFolder = track.getFolderTitle().replaceAll("\\s+", "_");// folderTitle nahi, currentPlaylistName use karo
-          // kyunki download is folder mein hota hai
+            //  String genreFolder = track.getFolderTitle().replaceAll("\\s+", "_");// folderTitle nahi,
+            //  currentPlaylistName use karo
+            // kyunki download is folder mein hota hai
             String genreFolder = (currentPlaylistName != null)
                     ? currentPlaylistName.replaceAll("\\s+", "_")
                     : track.getFolderTitle().replaceAll("\\s+", "_");
@@ -1177,9 +1187,11 @@ public class PlayerController extends Application {
 
             if (encryptedFile.exists()) {
                 AppLogger.log("[PLAYER] Playing from local file: " + encryptedFile.getAbsolutePath());
+                final String fallbackUrl = safeUrl;
                 new Thread(() -> {
                     try {
                         File tempFile = decryptToTemp(encryptedFile);
+                        currentTempFile = tempFile;
                         String localUrl = tempFile.toURI().toString();
 
                         if (!localUrl.contains(".mp3")) {
@@ -1211,8 +1223,33 @@ public class PlayerController extends Application {
                         });
 
                     } catch (Exception e) {
-                        e.printStackTrace();
+                    AppLogger.log("[PLAYER] Decryption failed for song-" + track.getId()
+                            + ", file corrupted. Deleting and streaming from URL. Error: " + e.getMessage());
+                    encryptedFile.delete();
+
+
+                    if (NetworkMonitor.getInstance().isOnline()) {
+                        Platform.runLater(() -> {
+                            AppLogger.log("[PLAYER] Falling back to stream: " + fallbackUrl);
+                            vlcPlayer.media().play(fallbackUrl);
+                            if (!vlcHandlersAttached) {
+                                attachVlcHandlers(albumHeading, titleLabel, progressSlider,
+                                        leftTime, rightTime, controlsWrapper, bottomBar, downloadLabel, autoPlay);
+                                vlcHandlersAttached = true;
+                            }
+                        });
+                    } else {
+                        AppLogger.log("[PLAYER] Offline — cannot stream fallback for song-" + track.getId() + ", skipping to next.");
+                        Platform.runLater(() -> {
+                            try {
+                                playNextTrack(albumHeading, titleLabel, progressSlider,
+                                        leftTime, rightTime, controlsWrapper, bottomBar, downloadLabel);
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        });
                     }
+                }
                 }).start();
 
                 return;
@@ -1258,7 +1295,15 @@ public class PlayerController extends Application {
             boolean autoPlay
     ) {
 
-        vlcPlayer.events().addMediaPlayerEventListener(new MediaPlayerEventAdapter() {
+        if (currentVlcListener != null) {
+            try {
+                vlcPlayer.events().removeMediaPlayerEventListener(currentVlcListener);
+            } catch (Exception ignored) {
+            }
+            currentVlcListener = null;
+        }
+
+        currentVlcListener = new MediaPlayerEventAdapter() {
 
             @Override
             public void playing(MediaPlayer mediaPlayer) {
@@ -1312,13 +1357,18 @@ public class PlayerController extends Application {
             @Override
             public void finished(MediaPlayer mediaPlayer) {
 
-                // 🔥 IMPORTANT
-                // Agar ad chal raha hai to next song mat chalao
                 if (adPlayer != null && adPlayer.isPlayingAd()) {
-
                     AppLogger.log("[PLAYER] Media finished but ad is active, ignoring");
-
                     return;
+                }
+
+                if (currentTempFile != null) {
+                    try {
+                        if (currentTempFile.exists()) currentTempFile.delete();
+                        AppLogger.log("[TEMP] Deleted on finish: " + currentTempFile.getName());
+                    } catch (Exception ignored) {
+                    }
+                    currentTempFile = null;
                 }
 
                 Platform.runLater(() -> {
@@ -1342,7 +1392,8 @@ public class PlayerController extends Application {
                     }
                 });
             }
-        });
+        };
+        vlcPlayer.events().addMediaPlayerEventListener(currentVlcListener);
     }
 
     private void playNextTrack(Label albumHeading,
@@ -1442,6 +1493,23 @@ public class PlayerController extends Application {
                               Label rightTime,
                               HBox controlsWrapper,
                               Label downloadLabel) {
+
+        if (currentVlcListener != null) {
+            try {
+                vlcPlayer.events().removeMediaPlayerEventListener(currentVlcListener);
+            } catch (Exception ignored) {
+            }
+            currentVlcListener = null;
+        }
+        vlcHandlersAttached = false;
+
+        if (currentTempFile != null) {
+            try {
+                if (currentTempFile.exists()) currentTempFile.delete();
+            } catch (Exception ignored) {
+            }
+            currentTempFile = null;
+        }
 
         if (vlcPlayer != null) {
             try {
