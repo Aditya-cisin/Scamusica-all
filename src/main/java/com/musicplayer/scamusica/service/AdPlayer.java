@@ -22,8 +22,13 @@ public class AdPlayer {
 
     private final MediaPlayer vlcPlayer;
     private final AdPlaybackListener listener;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+//    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
+    private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "AdPlayer-Thread");
+        t.setDaemon(true);
+        return t;
+    });
     private final Queue<Ad> adQueue = new ConcurrentLinkedQueue<>();
     private volatile boolean isPlayingAd = false;
 
@@ -121,7 +126,7 @@ public class AdPlayer {
                 boolean result = vlcPlayer.media().play(adUrl);
 
                 AppLogger.log("[AdPlayer] VLC PLAY RESULT = " + result);
-                vlcPlayer.media().play(adUrl);
+//                vlcPlayer.media().play(adUrl);
 
 
                 // One-time listener for this ad
