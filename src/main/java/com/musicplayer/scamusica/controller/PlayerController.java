@@ -653,40 +653,112 @@ public class PlayerController extends Application {
                 AppLogger.log("[AdPlayer] Song paused: " + reason);
             }
 
+//            @Override
+//            public void onSongResumed() {
+//
+//                AppLogger.log("[AdPlayer] Song resuming after ad");
+//
+//                Platform.runLater(() -> {
+//
+//                    try {
+//
+//                        if (!playQueue.isEmpty() && currentTrackIndex < playQueue.size()) {
+//
+//                            PlaylistTrack track = playQueue.get(currentTrackIndex);
+//
+//                            // 🔥 SAME SONG resume
+//                            vlcPlayer.media().play(
+//                                    encodeMediaUrl(track.getUrl())
+//                            );
+//
+//                            // 🔥 SAME POSITION resume
+//                            schedular.schedule(() -> {
+//                                Platform.runLater(() -> {
+//                                    try {
+//                                        long savedTime = adPlayer.getSavedSongTime();
+//                                        AppLogger.log("[PLAYER] Restoring position: " + savedTime);
+//                                        vlcPlayer.controls().setTime(savedTime);
+//                                    } catch (Exception e) {
+//                                        e.printStackTrace();
+//                                    }
+//                                });
+//                            }, 1500, TimeUnit.MILLISECONDS);
+//                        }
+//
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                    }
+//                });
+//            }
+
             @Override
             public void onSongResumed() {
-
                 AppLogger.log("[AdPlayer] Song resuming after ad");
 
                 Platform.runLater(() -> {
-
                     try {
+                        if (!playQueue.isEmpty() && currentTrackIndex < playQueue.size()) {
 
-                        if (!playQueue.isEmpty() &&
-                                currentTrackIndex < playQueue.size()) {
+                            PlaylistTrack track = playQueue.get(currentTrackIndex);
 
-                            PlaylistTrack track =
-                                    playQueue.get(currentTrackIndex);
+                            // ✅ Pehle local file check karo, phir URL
+                            String baseDownloadDir = System.getProperty("user.home")
+                                    + File.separator + ".scamusica"
+                                    + File.separator + "downloads";
 
-                            // 🔥 SAME SONG resume
-                            vlcPlayer.media().play(
-                                    encodeMediaUrl(track.getUrl())
-                            );
+                            String genreFolder = (currentPlaylistName != null)
+                                    ? currentPlaylistName.replaceAll("\\s+", "_")
+                                    : track.getFolderTitle().replaceAll("\\s+", "_");
 
-                            // 🔥 SAME POSITION resume
-                            schedular.schedule(() -> {
-                                Platform.runLater(() -> {
+                            File encryptedFile = new File(baseDownloadDir
+                                    + File.separator + genreFolder,
+                                    "song-" + track.getId() + ".dat");
+
+                            if (encryptedFile.exists()) {
+                                // ✅ Local file se resume karo
+                                AppLogger.log("[AdPlayer] Resuming from local file: " + encryptedFile.getAbsolutePath());
+                                new Thread(() -> {
                                     try {
-                                        long savedTime = adPlayer.getSavedSongTime();
-                                        AppLogger.log("[PLAYER] Restoring position: " + savedTime);
-                                        vlcPlayer.controls().setTime(savedTime);
+                                        File tempFile = decryptToTemp(encryptedFile);
+                                        currentTempFile = tempFile;
+                                        Platform.runLater(() -> {
+                                            vlcPlayer.media().play(tempFile.getAbsolutePath());
+                                            // ✅ Position restore karo
+                                            schedular.schedule(() -> {
+                                                Platform.runLater(() -> {
+                                                    try {
+                                                        long savedTime = adPlayer.getSavedSongTime();
+                                                        AppLogger.log("[PLAYER] Restoring position: " + savedTime);
+                                                        vlcPlayer.controls().setTime(savedTime);
+                                                    } catch (Exception e) { e.printStackTrace(); }
+                                                });
+                                            }, 1500, TimeUnit.MILLISECONDS);
+                                        });
                                     } catch (Exception e) {
                                         e.printStackTrace();
                                     }
-                                });
-                            }, 1500, TimeUnit.MILLISECONDS);
+                                }).start();
+                            } else if (NetworkMonitor.getInstance().isOnline()) {
+                                // ✅ Online hai toh URL se stream karo
+                                AppLogger.log("[AdPlayer] Resuming from URL: " + track.getUrl());
+                                vlcPlayer.media().play(encodeMediaUrl(track.getUrl()));
+                                schedular.schedule(() -> {
+                                    Platform.runLater(() -> {
+                                        try {
+                                            long savedTime = adPlayer.getSavedSongTime();
+                                            AppLogger.log("[PLAYER] Restoring position: " + savedTime);
+                                            vlcPlayer.controls().setTime(savedTime);
+                                        } catch (Exception e) { e.printStackTrace(); }
+                                    });
+                                }, 1500, TimeUnit.MILLISECONDS);
+                            } else {
+                                // ✅ Na local file na internet — next track play karo
+                                AppLogger.log("[AdPlayer] Cannot resume — offline and no local file. Playing next.");
+                                playNextTrack(globalAlbumHeading, globalTitleLabel,
+                                        globalProgressSlider, null, null,
+                                        globalControlsWrapper, globalBottomBar, null);
+                            }
                         }
-
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -715,13 +787,21 @@ public class PlayerController extends Application {
                 AppLogger.log("ActiveDays: " + ad.getActiveDays());
             }
 
+            // ✅ Online hai to schedule cache karo aur download shuru karo
+            if (allAds != null && !allAds.isEmpty()) {
+                OfflineCache.saveAdSchedule(allAds);          // schedule save karo
+                AdDownloadManager.downloadAllAds(allAds);      // files download karo background mein
+            }
+
             if (allAds == null) {
                 allAds = new ArrayList<>();
             }
             AppLogger.log("[AdSystem] Loaded " + allAds.size() + " ads");
         } catch (Exception e) {
-            AppLogger.log("[AdSystem] Failed to load ads: " + e.getMessage());
-            allAds = new ArrayList<>();
+            AppLogger.log("[AdSystem] Failed to load ads online, trying cache...");
+            // ✅ Offline fallback — cache se load karo
+            allAds = OfflineCache.loadAdSchedule();
+            AppLogger.log("[AdSystem] Loaded " + allAds.size() + " ads from cache");
         }
 
         // 3. Create scheduler with listeners
@@ -754,6 +834,8 @@ public class PlayerController extends Application {
             if (adScheduler != null) {
                 adScheduler.updateAds(allAds);
             }
+            OfflineCache.saveAdSchedule(allAds);
+            AdDownloadManager.downloadAllAds(allAds);
             AppLogger.log("[SYNC] Ads updated: " + allAds.size() + " ads");
         }
     }
