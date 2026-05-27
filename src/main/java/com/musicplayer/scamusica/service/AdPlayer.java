@@ -44,6 +44,12 @@ public class AdPlayer {
     public void queueAds(List<Ad> ads) {
         if (ads == null || ads.isEmpty()) return;
 
+        // ✅ When Offline don't queue
+        if (!NetworkMonitor.getInstance().isOnline()) {
+            AppLogger.log("[AdPlayer] Offline — ads not queued");
+            return;
+        }
+
         AppLogger.log("[AdPlayer] Queueing " + ads.size() + " ads");
 
         List<Ad> shuffled = new ArrayList<>(ads);
