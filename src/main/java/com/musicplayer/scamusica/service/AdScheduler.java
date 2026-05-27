@@ -76,6 +76,12 @@ public class AdScheduler {
 
     private void checkAndTriggerAds() {
         try {
+
+            if (!NetworkMonitor.getInstance().isOnline()) {
+                AppLogger.log("[AdScheduler] Offline — skipping ad check");
+                return;
+            }
+
             List<Ad> dueAds = getDueAds();
             if (!dueAds.isEmpty()) {
                 AppLogger.log("[AdScheduler] Due ads: " + dueAds.size());
