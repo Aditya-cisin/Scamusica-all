@@ -626,15 +626,11 @@ public class PlayerController extends Application {
                         + ad.getCampaignName());
 
                 Platform.runLater(() -> {
-
                     try {
 
                         if (!playQueue.isEmpty() && currentTrackIndex < playQueue.size()) {
-
                             PlaylistTrack track = playQueue.get(currentTrackIndex);
-
                             globalTitleLabel.setText(track.getTitle());
-
                             globalAlbumHeading.setText(currentPlaylistName);
                         }
 
@@ -705,7 +701,6 @@ public class PlayerController extends Application {
                 Platform.runLater(() -> {
                     try {
                         if (!playQueue.isEmpty() && currentTrackIndex < playQueue.size()) {
-
                             PlaylistTrack track = playQueue.get(currentTrackIndex);
 
                             // ✅ Pehle local file check karo, phir URL
@@ -786,7 +781,6 @@ public class PlayerController extends Application {
             AppLogger.log("[PlayerController] Total ads = " + allAds.size());
 
             for (Ad ad : allAds) {
-
                 AppLogger.log("==============");
                 AppLogger.log("Campaign: " + ad.getCampaignName());
                 AppLogger.log("ScheduleType: " + ad.getScheduleType());
@@ -994,12 +988,46 @@ public class PlayerController extends Application {
         try {
             PlaylistApiService playlistApiService = new PlaylistApiService();
 
+            // ✅ STEP 1: Fetch both tracks AND download sequence
             List<PlaylistTrack> fetchedTracks = playlistApiService.fetchTracksForGenre(playlistName);
+            List<Integer> downloadSeq = playlistApiService.fetchDownloadSequenceForGenre(playlistName);
 
+            if (downloadSeq == null) downloadSeq = new ArrayList<>();
+
+            // ✅ STEP 2: KEY FIX - Reorder playQueue to match downloadSequence
+            // This ensures first songs in queue are the first ones being downloaded
             if (fetchedTracks != null && !fetchedTracks.isEmpty()) {
-                playQueue.addAll(fetchedTracks);
+                if (!downloadSeq.isEmpty()) {
+                    // Create a map of ID -> Track for quick lookup
+                    Map<Integer, PlaylistTrack> trackMap = new HashMap<>();
+                    for (PlaylistTrack t : fetchedTracks) {
+                        trackMap.put(t.getId(), t);
+                    }
 
-                java.util.Collections.shuffle(playQueue);
+                    // Reorder playQueue to match downloadSeq order
+                    // e.g., if downloadSeq = [561, 572, 564], then playQueue[0]=561, playQueue[1]=572, etc.
+                    List<PlaylistTrack> reorderedQueue = new ArrayList<>();
+                    for (Integer id : downloadSeq) {
+                        if (trackMap.containsKey(id)) {
+                            reorderedQueue.add(trackMap.get(id));
+                        }
+                    }
+
+                    // Add remaining tracks (not in downloadSeq) - just in case
+                    Set<Integer> seenIds = new HashSet<>(downloadSeq);
+                    for (PlaylistTrack t : fetchedTracks) {
+                        if (!seenIds.contains(t.getId())) {
+                            reorderedQueue.add(t);
+                        }
+                    }
+
+                    playQueue.addAll(reorderedQueue);
+                } else {
+                    // No download sequence, shuffle normally
+                    List<PlaylistTrack> shuffled = new ArrayList<>(fetchedTracks);
+                    java.util.Collections.shuffle(shuffled);
+                    playQueue.addAll(shuffled);
+                }
             }
 
             recomputeGlobalCountAndUpdateUI();
@@ -1009,8 +1037,19 @@ public class PlayerController extends Application {
                 downloadManager = null;
             }
 
-            List<Integer> downloadSeq = playlistApiService.fetchDownloadSequenceForGenre(playlistName);
-            if (downloadSeq == null) downloadSeq = new ArrayList<>();
+            // Set first image AFTER reordering queue
+            if (!playQueue.isEmpty() && albumImageView != null) {
+                String firstImgUrl = playQueue.get(0).getAlbumImageUrl();
+                if (firstImgUrl != null && !firstImgUrl.trim().isEmpty()) {
+                    Platform.runLater(() -> {
+                        try {
+                            albumImageView.setImage(null);
+                            albumImageView.setImage(new Image(firstImgUrl, true));
+                        } catch (Exception ignored) {
+                        }
+                    });
+                }
+            }
 
             currentGenreTotalFiles = downloadSeq.size();
 
@@ -1440,7 +1479,6 @@ public class PlayerController extends Application {
                 decryptThread.start();
 
                 return;
-
             }
 
         } catch (Exception e) {
