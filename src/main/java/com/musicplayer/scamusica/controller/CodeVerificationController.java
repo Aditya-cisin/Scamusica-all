@@ -165,110 +165,242 @@ public class CodeVerificationController extends Application {
                 }
 
         });*/
+//        loginButton.setOnAction(event -> {
+//            if(!SessionManager.isUserLoggedIn()) {
+//                if(onlineStatus) {
+//                    String enteredPassword = passwordField.getText();
+//
+//                    if (enteredPassword.isEmpty()) {
+//                        messageText.textProperty().bind(LanguageManager.createStringBinding("text.codeError"));
+//                        return;
+//                    }
+//
+//                    // Disable button while calling API
+//                    loginButton.setDisable(true);
+//                    messageText.textProperty().bind(LanguageManager.createStringBinding("text.verify"));
+//                    messageText.setFill(Color.GREEN);
+//
+//                    // Run API call in background thread (important for JavaFX)
+//                    new Thread(() -> {
+//                        try {
+//                            // Create HTTP client
+//                          //  client = HttpClient.newHttpClient();
+//                            try {
+//                                javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory
+//                                        .getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+//                                java.security.KeyStore ks = java.security.KeyStore.getInstance("JKS");
+//                                java.io.File cacerts = new java.io.File(
+//                                        System.getProperty("java.home") + "/lib/security/cacerts");
+//                                try (java.io.FileInputStream fis = new java.io.FileInputStream(cacerts)) {
+//                                    ks.load(fis, "changeit".toCharArray());
+//                                }
+//                                tmf.init(ks);
+//                                javax.net.ssl.SSLContext sslContext = javax.net.ssl.SSLContext.getInstance("TLS");
+//                                sslContext.init(null, tmf.getTrustManagers(), null);
+//                                client = HttpClient.newBuilder().sslContext(sslContext).build();
+//                            } catch (Exception sslEx) {
+//                                // fallback — default client
+//                                client = HttpClient.newHttpClient();
+//                            }
+//
+//                            // system identification id for no cloning
+//                            String deviceId = DeviceFingerprint.getFingerprint();
+//                            // JSON body
+//                            String requestBody = "{"
+//                                    + "\"licenseCode\": \"" + enteredPassword + "\","
+//                                    + "\"deviceId\": \"" + deviceId + "\""
+//                                    + "}";
+//                            // String jsonBody = "{ \"licenseCode\": \"" + enteredPassword + "\" }";
+//                            HttpRequest request = HttpRequest.newBuilder()
+//                                    .uri(URI.create(Utility.BASE_URL.get() + Utility.VERIFY_LICENSE_CODE.get()))
+//                                    .timeout(Duration.ofSeconds(8))
+//                                    .header("Content-Type", "application/json")
+//                                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+//                                    .build();
+//                            // Send request
+//                            HttpResponse<String> response =
+//                                    client.send(request, HttpResponse.BodyHandlers.ofString());
+//                            // Parse response
+//                            ObjectMapper mapper = new ObjectMapper();
+//                            JsonNode jsonNode = mapper.readTree(response.body());
+//                            boolean success = jsonNode.get("success").asBoolean();
+//                            String message = jsonNode.get("message").asText();
+//                            if (success) {
+//                                Integer userId = jsonNode.get("playerId").asInt();
+//                                String token = jsonNode.get("token").asText();
+//                                String langCode = LanguageManager.getLangCode();
+//                                if (langCode == null) langCode = "en";
+//                                SessionManager.saveToken(token, userId, langCode);
+//
+//                                Platform.runLater(() -> {
+//                                    // YOUR EXISTING NAVIGATION – unchanged
+//                                    PlayerController controller = new PlayerController();
+//                                    controller.start(primaryStage);
+//                                });
+//
+//                            } else {
+//                                Platform.runLater(() -> {
+//                                    messageText.setFill(Color.RED);
+//                                    if(message.contains("This license is already registered to another device")){
+//                                        messageText.textProperty().bind(LanguageManager.createStringBinding("text.codeAlreadyActivated"));
+//                                    }else{
+//                                        messageText.textProperty().bind(LanguageManager.createStringBinding("text.activationError"));
+//                                    }
+//                                });
+//                            }
+//
+//                        } catch (Exception e) {
+//                            Platform.runLater(() -> {
+//                                messageText.setFill(Color.RED);
+//                                System.err.println("error: " + e.getMessage());
+//                                messageText.textProperty().bind(LanguageManager.createStringBinding("text.activationError"));
+//                            });
+//
+//                        } finally {
+//                            Platform.runLater(() -> loginButton.setDisable(false));
+//                        }
+//
+//                    }).start();
+//                }else{
+//                    Platform.runLater(() -> {
+//                        messageText.setFill(Color.RED);
+//                        messageText.textProperty().bind(LanguageManager.createStringBinding("text.internetError"));
+//                    });
+//                }
+//            }else{
+//                // YOUR EXISTING NAVIGATION – unchanged
+//                PlayerController controller = new PlayerController();
+//                controller.start(primaryStage);
+//            }
+//        });
         loginButton.setOnAction(event -> {
-            if(!SessionManager.isUserLoggedIn()) {
-                if(onlineStatus) {
-                    String enteredPassword = passwordField.getText();
+            String existingToken = SessionManager.loadToken();
 
-                    if (enteredPassword.isEmpty()) {
-                        messageText.textProperty().bind(LanguageManager.createStringBinding("text.codeError"));
-                        return;
-                    }
-
-                    // Disable button while calling API
-                    loginButton.setDisable(true);
-                    messageText.textProperty().bind(LanguageManager.createStringBinding("text.verify"));
-                    messageText.setFill(Color.GREEN);
-
-                    // Run API call in background thread (important for JavaFX)
-                    new Thread(() -> {
-                        try {
-                            // Create HTTP client
-                          //  client = HttpClient.newHttpClient();
-
-                            try {
-                                javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory
-                                        .getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
-                                java.security.KeyStore ks = java.security.KeyStore.getInstance("JKS");
-                                java.io.File cacerts = new java.io.File(
-                                        System.getProperty("java.home") + "/lib/security/cacerts");
-                                try (java.io.FileInputStream fis = new java.io.FileInputStream(cacerts)) {
-                                    ks.load(fis, "changeit".toCharArray());
-                                }
-                                tmf.init(ks);
-                                javax.net.ssl.SSLContext sslContext = javax.net.ssl.SSLContext.getInstance("TLS");
-                                sslContext.init(null, tmf.getTrustManagers(), null);
-                                client = HttpClient.newBuilder().sslContext(sslContext).build();
-                            } catch (Exception sslEx) {
-                                // fallback — default client
-                                client = HttpClient.newHttpClient();
-                            }
-                            
-                            // system identification id for no cloning
-                            String deviceId = DeviceFingerprint.getFingerprint();
-                            // JSON body
-                            String requestBody = "{"
-                                    + "\"licenseCode\": \"" + enteredPassword + "\","
-                                    + "\"deviceId\": \"" + deviceId + "\""
-                                    + "}";
-                            // String jsonBody = "{ \"licenseCode\": \"" + enteredPassword + "\" }";
-                            HttpRequest request = HttpRequest.newBuilder()
-                                    .uri(URI.create(Utility.BASE_URL.get() + Utility.VERIFY_LICENSE_CODE.get()))
-                                    .timeout(Duration.ofSeconds(8))
-                                    .header("Content-Type", "application/json")
-                                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                                    .build();
-                            // Send request
-                            HttpResponse<String> response =
-                                    client.send(request, HttpResponse.BodyHandlers.ofString());
-                            // Parse response
-                            ObjectMapper mapper = new ObjectMapper();
-                            JsonNode jsonNode = mapper.readTree(response.body());
-                            boolean success = jsonNode.get("success").asBoolean();
-                            String message = jsonNode.get("message").asText();
-                            if (success) {
-                                Integer userId = jsonNode.get("playerId").asInt();
-                                SessionManager.saveToken(jsonNode.get("token").asText(), userId, LanguageManager.getLangCode());
-
-                                Platform.runLater(() -> {
-                                    // YOUR EXISTING NAVIGATION – unchanged
-                                    PlayerController controller = new PlayerController();
-                                    controller.start(primaryStage);
-                                });
-
-                            } else {
-                                Platform.runLater(() -> {
-                                    messageText.setFill(Color.RED);
-                                    if(message.contains("This license is already registered to another device")){
-                                        messageText.textProperty().bind(LanguageManager.createStringBinding("text.codeAlreadyActivated"));
-                                    }else{
-                                    messageText.textProperty().bind(LanguageManager.createStringBinding("text.activationError"));
-                                    }
-                                });
-                            }
-
-                        } catch (Exception e) {
-                            Platform.runLater(() -> {
-                                messageText.setFill(Color.RED);
-                                System.err.println("error: " + e.getMessage());
-                                messageText.textProperty().bind(LanguageManager.createStringBinding("text.activationError"));
-                            });
-
-                        } finally {
-                            Platform.runLater(() -> loginButton.setDisable(false));
-                        }
-
-                    }).start();
-                }else{
-                    Platform.runLater(() -> {
-                        messageText.setFill(Color.RED);
-                        messageText.textProperty().bind(LanguageManager.createStringBinding("text.internetError"));
-                    });
-                }
-            }else{
-                // YOUR EXISTING NAVIGATION – unchanged
+            // ✅ CASE 1: Valid token hai — seedha player open karo
+            if (existingToken != null && !existingToken.isEmpty()
+                    && !SessionManager.isTokenExpired(existingToken)) {
                 PlayerController controller = new PlayerController();
                 controller.start(primaryStage);
+                return;
+            }
+
+            // ✅ CASE 2: Token hai but expire ho gaya — clear karo, user ko batao
+            if (existingToken != null && SessionManager.isTokenExpired(existingToken)) {
+                SessionManager.clearToken();
+                messageText.textProperty().unbind();
+                messageText.setFill(Color.ORANGE);
+                messageText.textProperty().bind(
+                        LanguageManager.createStringBinding("text.sessionExpired")
+                );
+                return;
+            }
+
+            // ✅ CASE 3: Token nahi hai — fresh login
+            if (onlineStatus) {
+                String enteredPassword = passwordField.getText();
+
+                if (enteredPassword.isEmpty()) {
+                    messageText.textProperty().bind(
+                            LanguageManager.createStringBinding("text.codeError")
+                    );
+                    return;
+                }
+
+                loginButton.setDisable(true);
+                messageText.textProperty().bind(
+                        LanguageManager.createStringBinding("text.verify")
+                );
+                messageText.setFill(Color.GREEN);
+
+                new Thread(() -> {
+                    try {
+                        // ✅ Tera SSL wala code intact
+                        try {
+                            javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory
+                                    .getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+                            java.security.KeyStore ks = java.security.KeyStore.getInstance("JKS");
+                            java.io.File cacerts = new java.io.File(
+                                    System.getProperty("java.home") + "/lib/security/cacerts");
+                            try (java.io.FileInputStream fis = new java.io.FileInputStream(cacerts)) {
+                                ks.load(fis, "changeit".toCharArray());
+                            }
+                            tmf.init(ks);
+                            javax.net.ssl.SSLContext sslContext = javax.net.ssl.SSLContext.getInstance("TLS");
+                            sslContext.init(null, tmf.getTrustManagers(), null);
+                            client = HttpClient.newBuilder().sslContext(sslContext).build();
+                        } catch (Exception sslEx) {
+                            client = HttpClient.newHttpClient();
+                        }
+
+                        String deviceId = DeviceFingerprint.getFingerprint();
+
+                        String requestBody = "{"
+                                + "\"licenseCode\": \"" + enteredPassword + "\","
+                                + "\"deviceId\": \"" + deviceId + "\""
+                                + "}";
+
+                        HttpRequest request = HttpRequest.newBuilder()
+                                .uri(URI.create(Utility.BASE_URL.get() + Utility.VERIFY_LICENSE_CODE.get()))
+                                .timeout(Duration.ofSeconds(8))
+                                .header("Content-Type", "application/json")
+                                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                                .build();
+
+                        HttpResponse<String> response =
+                                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+                        ObjectMapper mapper = new ObjectMapper();
+                        JsonNode jsonNode = mapper.readTree(response.body());
+                        boolean success = jsonNode.get("success").asBoolean();
+                        String message = jsonNode.get("message").asText();
+
+                        if (success) {
+                            Integer userId = jsonNode.get("playerId").asInt();
+                            String token = jsonNode.get("token").asText();
+                            String langCode = LanguageManager.getLangCode();
+                            if (langCode == null) langCode = "en";
+                            SessionManager.saveToken(token, userId, langCode);
+
+                            Platform.runLater(() -> {
+                                PlayerController controller = new PlayerController();
+                                controller.start(primaryStage);
+                            });
+
+                        } else {
+                            Platform.runLater(() -> {
+                                messageText.setFill(Color.RED);
+                                if (message.contains("This license is already registered to another device")) {
+                                    messageText.textProperty().bind(
+                                            LanguageManager.createStringBinding("text.codeAlreadyActivated")
+                                    );
+                                } else {
+                                    messageText.textProperty().bind(
+                                            LanguageManager.createStringBinding("text.activationError")
+                                    );
+                                }
+                            });
+                        }
+
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            messageText.setFill(Color.RED);
+                            System.err.println("error: " + e.getMessage());
+                            messageText.textProperty().bind(
+                                    LanguageManager.createStringBinding("text.activationError")
+                            );
+                        });
+                    } finally {
+                        Platform.runLater(() -> loginButton.setDisable(false));
+                    }
+                }).start();
+
+            } else {
+                Platform.runLater(() -> {
+                    messageText.setFill(Color.RED);
+                    messageText.textProperty().bind(
+                            LanguageManager.createStringBinding("text.internetError")
+                    );
+                });
             }
         });
 
