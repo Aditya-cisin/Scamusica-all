@@ -16,22 +16,48 @@ public class PlaylistApiService {
     private static final String SONGS_URL =
             Utility.BASE_URL.get() + Utility.API_SONGS_ENDPOINT.get();
 
+//    private JsonObject fetchRootJson() throws Exception {
+//        String token = SessionManager.loadToken();
+//
+//        if (token == null || token.trim().isEmpty()) {
+//            System.err.println("[PlaylistApiService] Token is null or empty");
+//            throw new IllegalStateException("Bearer token is missing");
+//        }
+//
+//        System.out.println("[PlaylistApiService] Using token: " + token);
+//
+//        Map<String, String> headers = new HashMap<>();
+//        headers.put("Authorization", "Bearer " + token);
+//        headers.put("Accept", "application/json");
+//
+//        String response = ApiClient.get(SONGS_URL, headers);
+//        System.out.println("[PlaylistApiService] Raw response : " + response);
+//
+//        if (response == null || response.isEmpty()) {
+//            throw new IllegalStateException("Empty response from API");
+//        }
+//
+//        return JsonParser.parseString(response).getAsJsonObject();
+//    }
+
     private JsonObject fetchRootJson() throws Exception {
         String token = SessionManager.loadToken();
 
         if (token == null || token.trim().isEmpty()) {
-            System.err.println("[PlaylistApiService] Token is null or empty");
             throw new IllegalStateException("Bearer token is missing");
         }
 
-        System.out.println("[PlaylistApiService] Using token: " + token);
+        if (SessionManager.isTokenExpired(token)) {
+            AppLogger.log("[PlaylistApiService] Token expired, clearing session");
+            SessionManager.clearToken();
+            throw new IllegalStateException("Bearer token is expired");
+        }
 
         Map<String, String> headers = new HashMap<>();
         headers.put("Authorization", "Bearer " + token);
         headers.put("Accept", "application/json");
 
         String response = ApiClient.get(SONGS_URL, headers);
-        System.out.println("[PlaylistApiService] Raw response : " + response);
 
         if (response == null || response.isEmpty()) {
             throw new IllegalStateException("Empty response from API");
