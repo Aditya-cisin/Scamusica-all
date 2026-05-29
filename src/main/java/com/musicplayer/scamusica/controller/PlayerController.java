@@ -61,6 +61,12 @@ public class PlayerController extends Application {
     private File currentTempFile = null;
     private Thread queueWorkerThread = null;
 
+    // Class ke top pe ye fields add karo (jahan aur fields hain)
+    private final List<String> playlistMaster = new ArrayList<>();
+    private final javafx.collections.ObservableList<String> playlistViewItems =
+            FXCollections.observableArrayList();
+    private final String[] playlistCurrent = new String[1];
+
     private final PlayerSidebar sidebarUtil = new PlayerSidebar();
     private final PlayerHeader headerUtil = new PlayerHeader();
     private final PlayerDropdown dropdownUtil = new PlayerDropdown();
@@ -188,14 +194,17 @@ public class PlayerController extends Application {
             }
         }
 
-        final javafx.collections.ObservableList<String> playlistViewItems = FXCollections.observableArrayList();
-        final String[] playlistCurrent = new String[1];
-        final List<String> playlistMaster = tempList;
+//        final javafx.collections.ObservableList<String> playlistViewItems = FXCollections.observableArrayList();
+//        final String[] playlistCurrent = new String[1];
+//        final List<String> playlistMaster = tempList;
 
+        playlistMaster.addAll(tempList);
         playlistCurrent[0] = playlistMaster.get(0);
-        playlistViewItems.setAll(playlistMaster.stream()
-                .filter(s -> !s.equals(playlistCurrent[0]))
-                .collect(Collectors.toList()));
+        playlistViewItems.setAll(
+                playlistMaster.stream()
+                        .filter(s -> !s.equals(playlistCurrent[0]))
+                        .collect(Collectors.toList())
+        );
 
         playlistPill = dropdownUtil.createPlaylistPill(playlistCurrent[0]);
         playlistDropdownCard =
@@ -473,17 +482,28 @@ public class PlayerController extends Application {
 
         schedular.scheduleAtFixedRate(() -> {
             operationQueue.add(() -> {
+                // ✅ Offline hai toh sync skip karo
+                if (!NetworkMonitor.getInstance().isOnline()) {
+                    AppLogger.log("[SYNC] Offline — skipping server sync");
+                    return;
+                }
                 try {
                     syncWithServer();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             });
-        }, 30, 60, java.util.concurrent.TimeUnit.SECONDS);
+        }, 30, 300, java.util.concurrent.TimeUnit.SECONDS); // 300s = 5 minutes
     }
 
     private void syncWithServer() {
         AppLogger.log("[SYNC] Checking server updates for playlist: " + currentPlaylistName);
+
+        if (!NetworkMonitor.getInstance().isOnline()) {
+            AppLogger.log("[SYNC] Offline — aborting sync");
+            return;
+        }
+
         try {
             PlaylistApiService api = new PlaylistApiService();
 
@@ -568,6 +588,36 @@ public class PlayerController extends Application {
 
             try {
                 syncAdsFromServer();
+                // ✅ Playlist titles sync
+                try {
+                    PlaylistApiService api2 = new PlaylistApiService();
+                    List<String> serverTitles = api2.fetchPlaylistTitles();
+
+                    if (serverTitles != null && !serverTitles.isEmpty()) {
+                        Platform.runLater(() -> {
+                            try {
+                                // Agar kuch naya add/remove hua hai tabhi update karo
+                                if (!serverTitles.equals(playlistMaster)) {
+                                    playlistMaster.clear();
+                                    playlistMaster.addAll(serverTitles);
+
+                                    // Pill update karo — current selected same rakho
+                                    playlistViewItems.setAll(
+                                            playlistMaster.stream()
+                                                    .filter(s -> !s.equals(playlistCurrent[0]))
+                                                    .collect(Collectors.toList())
+                                    );
+
+                                    AppLogger.log("[SYNC] Playlist titles updated: " + serverTitles.size());
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    AppLogger.log("[SYNC] Playlist title sync failed: " + e.getMessage());
+                }
             } catch (Exception e) {
                 AppLogger.log("[SYNC] Ad sync failed: " + e.getMessage());
             }
@@ -827,6 +877,12 @@ public class PlayerController extends Application {
     }
 
     private void syncAdsFromServer() throws Exception {
+
+        if (!NetworkMonitor.getInstance().isOnline()) {
+            AppLogger.log("[SYNC] Offline — skipping ad sync");
+            return;
+        }
+
         PlaylistApiService api = new PlaylistApiService();
         List<Ad> serverAds = api.fetchAds();
 
