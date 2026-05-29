@@ -21,6 +21,9 @@ public class NetworkMonitor {
     // Singleton instance
     private static NetworkMonitor instance;
 
+    private int failureCount = 0;
+    private static final int FAILURE_THRESHOLD = 2;
+
     // Observable property — UI binds to this
     private final BooleanProperty online = new SimpleBooleanProperty(false);
 
@@ -28,9 +31,9 @@ public class NetworkMonitor {
     private volatile boolean running = false;
 
     // URL used for connectivity ping (lightweight, reliable)
-    private static final String PING_URL = "https://clients3.google.com/generate_204";
-    private static final int TIMEOUT_MS = 3000;
-    private static final int CHECK_INTERVAL_SEC = 5;
+    private static final String PING_URL = "https://api.scamusica.com/";
+    private static final int TIMEOUT_MS = 8000;
+    private static final int CHECK_INTERVAL_SEC = 15;
 
     private NetworkMonitor() {}
 
@@ -97,6 +100,18 @@ public class NetworkMonitor {
      */
     private void checkConnectivity() {
         boolean result = pingServer();
+
+        if (result) {
+            failureCount = 0; // reset on success
+        } else {
+            failureCount++;
+            // Sirf tab OFFLINE declare karo jab 2 baar laagataar fail ho
+            if (failureCount < FAILURE_THRESHOLD) {
+                AppLogger.log("[NetworkMonitor] Ping failed (" + failureCount + "/" + FAILURE_THRESHOLD + "), waiting...");
+                return; // status change mat karo abhi
+            }
+        }
+
         Platform.runLater(() -> {
             if (online.get() != result) {
                 online.set(result);
