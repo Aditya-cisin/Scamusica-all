@@ -61,7 +61,6 @@ public class PlayerController extends Application {
     private File currentTempFile = null;
     private Thread queueWorkerThread = null;
 
-    // Class ke top pe ye fields add karo (jahan aur fields hain)
     private final List<String> playlistMaster = new ArrayList<>();
     private final javafx.collections.ObservableList<String> playlistViewItems =
             FXCollections.observableArrayList();
@@ -149,18 +148,15 @@ public class PlayerController extends Application {
         rightMeta.getChildren().add(languageBox);
         BorderPane header = headerUtil.createHeader(leftMeta, logoView, rightMeta);
 
-
-//        Label albumHeading = albumUtil.createAlbumHeading();
         globalAlbumHeading = albumUtil.createAlbumHeading();
         Label albumHeading = globalAlbumHeading;
-        // New Code
+
         Label currentStyleLabel = new Label();
         currentStyleLabel.textProperty().bind(
                 LanguageManager.createStringBinding("label.currentStyle")
         );
 
         currentStyleLabel.getStyleClass().add("section-heading-styles");
-        // New Code
 
         ImageView img = albumUtil.createAlbumImage(getClass());
         albumImageView = img;
@@ -194,10 +190,6 @@ public class PlayerController extends Application {
             }
         }
 
-//        final javafx.collections.ObservableList<String> playlistViewItems = FXCollections.observableArrayList();
-//        final String[] playlistCurrent = new String[1];
-//        final List<String> playlistMaster = tempList;
-
         playlistMaster.addAll(tempList);
         playlistCurrent[0] = playlistMaster.get(0);
         playlistViewItems.setAll(
@@ -226,7 +218,6 @@ public class PlayerController extends Application {
         HBox rightWrapper = new HBox(rightColumn);
         rightWrapper.setAlignment(Pos.TOP_RIGHT);
 
-//        Label titleCentered = headerUtil.createPlayerTitle();
         globalTitleLabel = headerUtil.createPlayerTitle();
         Label titleCentered = globalTitleLabel;
         VBox centerContainer = headerUtil.createCenterContainer(titleCentered);
@@ -324,7 +315,6 @@ public class PlayerController extends Application {
 
             running = false;
 
-            // ✅ FIX: Queue worker ko interrupt karo
             if (queueWorkerThread != null) {
                 queueWorkerThread.interrupt();
             }
@@ -347,7 +337,6 @@ public class PlayerController extends Application {
                 }
             }
 
-            // ✅ ADD THESE 4 LINES - Cleanup ad system
             if (adScheduler != null) {
                 adScheduler.stop();
             }
@@ -369,12 +358,10 @@ public class PlayerController extends Application {
             Slider volumeSlider = controlsUtil.getVolumeSlider(bottomBar);
             controlsUtil.setupVolumeSliderFill(controlsUtil.getVolumeSlider(bottomBar));
 
-            // Saved volume load karo, default 85
             double savedVolume = prefs.getDouble(PREF_VOLUME, 85.0);
             volumeSlider.setValue(savedVolume);
             vlcPlayer.audio().setVolume((int) savedVolume);
 
-            // Volume change hone par save karo
             volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
                 prefs.putDouble(PREF_VOLUME, newVal.doubleValue());
                 vlcPlayer.audio().setVolume(newVal.intValue());
@@ -476,13 +463,11 @@ public class PlayerController extends Application {
         queueWorkerThread.setDaemon(true);
         queueWorkerThread.start();
 
-
         // 🔥 START SCHEDULER
         schedular = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
 
         schedular.scheduleAtFixedRate(() -> {
             operationQueue.add(() -> {
-                // ✅ Offline hai toh sync skip karo
                 if (!NetworkMonitor.getInstance().isOnline()) {
                     AppLogger.log("[SYNC] Offline — skipping server sync");
                     return;
@@ -596,12 +581,10 @@ public class PlayerController extends Application {
                     if (serverTitles != null && !serverTitles.isEmpty()) {
                         Platform.runLater(() -> {
                             try {
-                                // Agar kuch naya add/remove hua hai tabhi update karo
                                 if (!serverTitles.equals(playlistMaster)) {
                                     playlistMaster.clear();
                                     playlistMaster.addAll(serverTitles);
 
-                                    // Pill update karo — current selected same rakho
                                     playlistViewItems.setAll(
                                             playlistMaster.stream()
                                                     .filter(s -> !s.equals(playlistCurrent[0]))
@@ -643,7 +626,6 @@ public class PlayerController extends Application {
                         globalTitleLabel.setText("ADVERTISEMENT");
                         globalAlbumHeading.setText(ad.getCampaignName());
 
-                        // ✅ Global fields use karo
                         if (globalProgressSlider != null) {
                             globalProgressSlider.setDisable(true);
                             globalProgressSlider.setMouseTransparent(true);
@@ -654,7 +636,6 @@ public class PlayerController extends Application {
 
                         setGenreSwitchEnabled(false);
 
-                        // ✅ Volume slider alone enable rakho
                         if (globalBottomBar != null) {
                             Slider volumeSlider = controlsUtil.getVolumeSlider(globalBottomBar);
                             if (volumeSlider != null) {
@@ -684,7 +665,6 @@ public class PlayerController extends Application {
                             globalAlbumHeading.setText(currentPlaylistName);
                         }
 
-                        // ✅ Sab re-enable karo
                         if (globalProgressSlider != null) {
                             globalProgressSlider.setDisable(false);
                             globalProgressSlider.setMouseTransparent(false);
@@ -706,44 +686,6 @@ public class PlayerController extends Application {
                 AppLogger.log("[AdPlayer] Song paused: " + reason);
             }
 
-//            @Override
-//            public void onSongResumed() {
-//
-//                AppLogger.log("[AdPlayer] Song resuming after ad");
-//
-//                Platform.runLater(() -> {
-//
-//                    try {
-//
-//                        if (!playQueue.isEmpty() && currentTrackIndex < playQueue.size()) {
-//
-//                            PlaylistTrack track = playQueue.get(currentTrackIndex);
-//
-//                            // 🔥 SAME SONG resume
-//                            vlcPlayer.media().play(
-//                                    encodeMediaUrl(track.getUrl())
-//                            );
-//
-//                            // 🔥 SAME POSITION resume
-//                            schedular.schedule(() -> {
-//                                Platform.runLater(() -> {
-//                                    try {
-//                                        long savedTime = adPlayer.getSavedSongTime();
-//                                        AppLogger.log("[PLAYER] Restoring position: " + savedTime);
-//                                        vlcPlayer.controls().setTime(savedTime);
-//                                    } catch (Exception e) {
-//                                        e.printStackTrace();
-//                                    }
-//                                });
-//                            }, 1500, TimeUnit.MILLISECONDS);
-//                        }
-//
-//                    } catch (Exception e) {
-//                        e.printStackTrace();
-//                    }
-//                });
-//            }
-
             @Override
             public void onSongResumed() {
                 AppLogger.log("[AdPlayer] Song resuming after ad");
@@ -753,7 +695,6 @@ public class PlayerController extends Application {
                         if (!playQueue.isEmpty() && currentTrackIndex < playQueue.size()) {
                             PlaylistTrack track = playQueue.get(currentTrackIndex);
 
-                            // ✅ Pehle local file check karo, phir URL
                             String baseDownloadDir = System.getProperty("user.home")
                                     + File.separator + ".scamusica"
                                     + File.separator + "downloads";
@@ -767,21 +708,35 @@ public class PlayerController extends Application {
                                     "song-" + track.getId() + ".dat");
 
                             if (encryptedFile.exists()) {
-                                // ✅ Local file se resume karo
                                 AppLogger.log("[AdPlayer] Resuming from local file: " + encryptedFile.getAbsolutePath());
                                 new Thread(() -> {
                                     try {
+                                        if (currentTempFile != null && currentTempFile.exists()) {
+                                            currentTempFile.delete();
+                                        }
                                         File tempFile = decryptToTemp(encryptedFile);
                                         currentTempFile = tempFile;
                                         Platform.runLater(() -> {
+                                            int originalVol = (int) prefs.getDouble(PREF_VOLUME, 85.0);
+                                            vlcPlayer.audio().setVolume(0);
                                             vlcPlayer.media().play(tempFile.getAbsolutePath());
-                                            // ✅ Position restore karo
                                             schedular.schedule(() -> {
                                                 Platform.runLater(() -> {
                                                     try {
                                                         long savedTime = adPlayer.getSavedSongTime();
                                                         AppLogger.log("[PLAYER] Restoring position: " + savedTime);
                                                         vlcPlayer.controls().setTime(savedTime);
+                                                        new Thread(() -> {
+                                                            try {
+                                                                int steps = 20;
+                                                                for (int i = 1; i <= steps; i++) {
+                                                                    int currentVol = (int) (originalVol * ((double) i / steps));
+                                                                    vlcPlayer.audio().setVolume(currentVol);
+                                                                    Thread.sleep(100);
+                                                                }
+                                                                vlcPlayer.audio().setVolume(originalVol);
+                                                            } catch (Exception e) {}
+                                                        }).start();
                                                     } catch (Exception e) { e.printStackTrace(); }
                                                 });
                                             }, 1500, TimeUnit.MILLISECONDS);
@@ -791,8 +746,9 @@ public class PlayerController extends Application {
                                     }
                                 }).start();
                             } else if (NetworkMonitor.getInstance().isOnline()) {
-                                // ✅ Online hai toh URL se stream karo
                                 AppLogger.log("[AdPlayer] Resuming from URL: " + track.getUrl());
+                                int originalVol = (int) prefs.getDouble(PREF_VOLUME, 85.0);
+                                vlcPlayer.audio().setVolume(0);
                                 vlcPlayer.media().play(encodeMediaUrl(track.getUrl()));
                                 schedular.schedule(() -> {
                                     Platform.runLater(() -> {
@@ -800,11 +756,21 @@ public class PlayerController extends Application {
                                             long savedTime = adPlayer.getSavedSongTime();
                                             AppLogger.log("[PLAYER] Restoring position: " + savedTime);
                                             vlcPlayer.controls().setTime(savedTime);
+                                            new Thread(() -> {
+                                                try {
+                                                    int steps = 20;
+                                                    for (int i = 1; i <= steps; i++) {
+                                                        int currentVol = (int) (originalVol * ((double) i / steps));
+                                                        vlcPlayer.audio().setVolume(currentVol);
+                                                        Thread.sleep(100);
+                                                    }
+                                                    vlcPlayer.audio().setVolume(originalVol);
+                                                } catch (Exception e) {}
+                                            }).start();
                                         } catch (Exception e) { e.printStackTrace(); }
                                     });
                                 }, 1500, TimeUnit.MILLISECONDS);
                             } else {
-                                // ✅ Na local file na internet — next track play karo
                                 AppLogger.log("[AdPlayer] Cannot resume — offline and no local file. Playing next.");
                                 playNextTrack(globalAlbumHeading, globalTitleLabel,
                                         globalProgressSlider, null, null,
@@ -838,10 +804,9 @@ public class PlayerController extends Application {
                 AppLogger.log("ActiveDays: " + ad.getActiveDays());
             }
 
-            // ✅ Online hai to schedule cache karo aur download shuru karo
             if (allAds != null && !allAds.isEmpty()) {
-                OfflineCache.saveAdSchedule(allAds);          // schedule save karo
-                AdDownloadManager.downloadAllAds(allAds);      // files download karo background mein
+                OfflineCache.saveAdSchedule(allAds);
+                AdDownloadManager.downloadAllAds(allAds);
             }
 
             if (allAds == null) {
@@ -850,7 +815,6 @@ public class PlayerController extends Application {
             AppLogger.log("[AdSystem] Loaded " + allAds.size() + " ads");
         } catch (Exception e) {
             AppLogger.log("[AdSystem] Failed to load ads online, trying cache...");
-            // ✅ Offline fallback — cache se load karo
             allAds = OfflineCache.loadAdSchedule();
             AppLogger.log("[AdSystem] Loaded " + allAds.size() + " ads from cache");
         }
@@ -1030,7 +994,7 @@ public class PlayerController extends Application {
                 Platform.runLater(() -> {
                     try {
                         albumImageView.setImage(null);
-                        albumImageView.setImage(new Image(firstImgUrl, true));
+                        albumImageView.setImage(new Image(firstImgUrl, 400, 400, true, true, true));
                     } catch (Exception ignored) {
                     }
                 });
@@ -1100,7 +1064,7 @@ public class PlayerController extends Application {
                     Platform.runLater(() -> {
                         try {
                             albumImageView.setImage(null);
-                            albumImageView.setImage(new Image(firstImgUrl, true));
+                            albumImageView.setImage(new Image(firstImgUrl, 400, 400, true, true, true));
                         } catch (Exception ignored) {
                         }
                     });
@@ -1414,7 +1378,7 @@ public class PlayerController extends Application {
             String albumImgUrl = track.getAlbumImageUrl();
             if (albumImgUrl != null && !albumImgUrl.trim().isEmpty()) {
                 try {
-                    albumImageView.setImage(new Image(albumImgUrl, true));
+                    albumImageView.setImage(new Image(albumImgUrl, 400, 400, true, true, true));
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -1451,9 +1415,6 @@ public class PlayerController extends Application {
                     + File.separator + ".scamusica"
                     + File.separator + "downloads";
 
-            //  String genreFolder = track.getFolderTitle().replaceAll("\\s+", "_");// folderTitle nahi,
-            //  currentPlaylistName use karo
-            // kyunki download is folder mein hota hai
             String genreFolder = (currentPlaylistName != null)
                     ? currentPlaylistName.replaceAll("\\s+", "_")
                     : track.getFolderTitle().replaceAll("\\s+", "_");
@@ -1469,6 +1430,9 @@ public class PlayerController extends Application {
                 final String fallbackUrl = safeUrl;
                 Thread decryptThread = new Thread(() -> {
                     try {
+                        if (currentTempFile != null && currentTempFile.exists()) {
+                            currentTempFile.delete();
+                        }
                         File tempFile = decryptToTemp(encryptedFile);
                         currentTempFile = tempFile;
                         String localUrl = tempFile.toURI().toString();
@@ -1805,12 +1769,14 @@ public class PlayerController extends Application {
             } catch (Exception ignored) {
             }
         }
+
         if (rightTime != null) {
             try {
                 rightTime.textProperty().unbind();
             } catch (Exception ignored) {
             }
         }
+
         if (downloadLabel != null) {
             try {
                 downloadLabel.textProperty().unbind();
@@ -1829,6 +1795,7 @@ public class PlayerController extends Application {
         if (leftTime != null) {
             leftTime.setText("0:00");
         }
+
         if (rightTime != null) {
             rightTime.setText("-0:00");
         }
@@ -1916,7 +1883,7 @@ public class PlayerController extends Application {
         }
 
         return tempFile;
-    }
+    }   
 
     private String formatTime(long seconds) {
         long m = seconds / 60;
