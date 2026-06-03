@@ -178,6 +178,8 @@ public class PlayerControls {
         volLow.getStyleClass().add("volume-icon");
         Slider volumeSlider = new Slider(0, 100, 50);
         volumeSlider.setPrefWidth(320);
+        volumeSlider.setMinWidth(60);
+        volumeSlider.setMaxWidth(320);
         volumeSlider.getStyleClass().add("volume-slider");
         FontIcon volHigh = new FontIcon("fas-volume-up");
         volHigh.setIconSize(14);
@@ -187,7 +189,7 @@ public class PlayerControls {
 
         HBox bottomBar = new HBox(12, downloadLabel, hSpacer, volLow, volumeSlider, volHigh);
         bottomBar.getStyleClass().add("bottom-bar");
-        bottomBar.setPadding(new Insets(14, 24, 24, 24));
+        bottomBar.setPadding(new Insets(0, 24, 12, 24));
         bottomBar.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         return bottomBar;
     }
