@@ -1,4 +1,4 @@
-package com.musicplayer.scamusica.manager;
+package com.musicplayer.scamusica.util;
 
 import java.net.NetworkInterface;
 import java.util.ArrayList;
