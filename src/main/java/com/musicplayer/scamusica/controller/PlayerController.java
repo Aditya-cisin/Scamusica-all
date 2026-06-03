@@ -137,7 +137,31 @@ public class PlayerController extends Application {
         List<Button> sidebarButtons = Arrays.asList(headphonesButton);
         sidebarUtil.addSidebarLogic(sidebarButtons, headphonesButton);
         VBox sidebarTop = sidebarUtil.createSidebarTop(headphonesButton);
-        FontIcon settingsIcon = sidebarUtil.createSettingsIcon(primaryStage);
+        FontIcon settingsIcon = sidebarUtil.createSettingsIcon(primaryStage, () -> {
+            running = false;
+            if (vlcPlayer != null) {
+                try {
+                    vlcPlayer.controls().stop();
+                } catch (Exception ignored) {}
+            }
+            if (queueWorkerThread != null) {
+                queueWorkerThread.interrupt();
+            }
+            if (schedular != null) {
+                schedular.shutdownNow();
+            }
+            if (adScheduler != null) {
+                adScheduler.stop();
+            }
+            if (adPlayer != null) {
+                adPlayer.stop();
+            }
+            if (downloadManager != null) {
+                try {
+                    downloadManager.stop();
+                } catch (Exception ignored) {}
+            }
+        });
         VBox sidebar = sidebarUtil.createSidebar(sidebarTop, settingsIcon);
 
         HBox leftMeta = headerUtil.createLeftMeta();
