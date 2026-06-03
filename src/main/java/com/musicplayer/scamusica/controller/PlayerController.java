@@ -742,27 +742,35 @@ public class PlayerController extends Application {
                                         currentTempFile = tempFile;
                                         Platform.runLater(() -> {
                                             int originalVol = (int) prefs.getDouble(PREF_VOLUME, 85.0);
-                                            vlcPlayer.audio().setVolume(0);
-                                            vlcPlayer.media().play(tempFile.getAbsolutePath());
+                                            long savedTime = adPlayer.getSavedSongTime();
+                                            String startTimeOpt = ":start-time=" + (savedTime / 1000.0f);
+                                            
+                                            new Thread(() -> {
+                                                try {
+                                                    for(int i = 0; i < 15; i++) {
+                                                        vlcPlayer.audio().setVolume(0);
+                                                        vlcPlayer.audio().setMute(true);
+                                                        Thread.sleep(100);
+                                                    }
+                                                } catch (Exception e) {}
+                                            }).start();
+                                            
+                                            vlcPlayer.media().play(tempFile.getAbsolutePath(), startTimeOpt);
+                                            
                                             schedular.schedule(() -> {
-                                                Platform.runLater(() -> {
+                                                new Thread(() -> {
                                                     try {
-                                                        long savedTime = adPlayer.getSavedSongTime();
-                                                        AppLogger.log("[PLAYER] Restoring position: " + savedTime);
-                                                        vlcPlayer.controls().setTime(savedTime);
-                                                        new Thread(() -> {
-                                                            try {
-                                                                int steps = 20;
-                                                                for (int i = 1; i <= steps; i++) {
-                                                                    int currentVol = (int) (originalVol * ((double) i / steps));
-                                                                    vlcPlayer.audio().setVolume(currentVol);
-                                                                    Thread.sleep(100);
-                                                                }
-                                                                vlcPlayer.audio().setVolume(originalVol);
-                                                            } catch (Exception e) {}
-                                                        }).start();
-                                                    } catch (Exception e) { e.printStackTrace(); }
-                                                });
+                                                        vlcPlayer.audio().setVolume(0);
+                                                        vlcPlayer.audio().setMute(false);
+                                                        int steps = 20;
+                                                        for (int i = 1; i <= steps; i++) {
+                                                            int currentVol = (int) (originalVol * ((double) i / steps));
+                                                            vlcPlayer.audio().setVolume(currentVol);
+                                                            Thread.sleep(100);
+                                                        }
+                                                        vlcPlayer.audio().setVolume(originalVol);
+                                                    } catch (Exception e) {}
+                                                }).start();
                                             }, 1500, TimeUnit.MILLISECONDS);
                                         });
                                     } catch (Exception e) {
@@ -772,27 +780,35 @@ public class PlayerController extends Application {
                             } else if (NetworkMonitor.getInstance().isOnline()) {
                                 AppLogger.log("[AdPlayer] Resuming from URL: " + track.getUrl());
                                 int originalVol = (int) prefs.getDouble(PREF_VOLUME, 85.0);
-                                vlcPlayer.audio().setVolume(0);
-                                vlcPlayer.media().play(encodeMediaUrl(track.getUrl()));
+                                long savedTime = adPlayer.getSavedSongTime();
+                                String startTimeOpt = ":start-time=" + (savedTime / 1000.0f);
+                                
+                                new Thread(() -> {
+                                    try {
+                                        for(int i = 0; i < 15; i++) {
+                                            vlcPlayer.audio().setVolume(0);
+                                            vlcPlayer.audio().setMute(true);
+                                            Thread.sleep(100);
+                                        }
+                                    } catch (Exception e) {}
+                                }).start();
+                                
+                                vlcPlayer.media().play(encodeMediaUrl(track.getUrl()), startTimeOpt);
+                                
                                 schedular.schedule(() -> {
-                                    Platform.runLater(() -> {
+                                    new Thread(() -> {
                                         try {
-                                            long savedTime = adPlayer.getSavedSongTime();
-                                            AppLogger.log("[PLAYER] Restoring position: " + savedTime);
-                                            vlcPlayer.controls().setTime(savedTime);
-                                            new Thread(() -> {
-                                                try {
-                                                    int steps = 20;
-                                                    for (int i = 1; i <= steps; i++) {
-                                                        int currentVol = (int) (originalVol * ((double) i / steps));
-                                                        vlcPlayer.audio().setVolume(currentVol);
-                                                        Thread.sleep(100);
-                                                    }
-                                                    vlcPlayer.audio().setVolume(originalVol);
-                                                } catch (Exception e) {}
-                                            }).start();
-                                        } catch (Exception e) { e.printStackTrace(); }
-                                    });
+                                            vlcPlayer.audio().setVolume(0);
+                                            vlcPlayer.audio().setMute(false);
+                                            int steps = 20;
+                                            for (int i = 1; i <= steps; i++) {
+                                                int currentVol = (int) (originalVol * ((double) i / steps));
+                                                vlcPlayer.audio().setVolume(currentVol);
+                                                Thread.sleep(100);
+                                            }
+                                            vlcPlayer.audio().setVolume(originalVol);
+                                        } catch (Exception e) {}
+                                    }).start();
                                 }, 1500, TimeUnit.MILLISECONDS);
                             } else {
                                 AppLogger.log("[AdPlayer] Cannot resume — offline and no local file. Playing next.");
