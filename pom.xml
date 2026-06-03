@@ -115,6 +115,7 @@
                           <noHeaderFiles>true</noHeaderFiles>
                           <noManPages>true</noManPages>
                           <stripDebug>true</stripDebug>
+						  <ignoreSigningInformation>true</ignoreSigningInformation>
                       </configuration>
                       <executions>
                           <execution>
