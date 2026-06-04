@@ -271,9 +271,14 @@ public class PlayerController extends Application {
             leftAlbumVBox.getChildren().add(downloadLabel);
         }
 
+        StackPane combinedBottom = new StackPane();
+        bottomBar.setPickOnBounds(false);
+        combinedBottom.getChildren().addAll(controlsWrapper, bottomBar);
+        StackPane.setAlignment(bottomBar, Pos.CENTER);
+
         VBox contentVBox = new VBox();
         contentVBox.setSpacing(0);
-        contentVBox.getChildren().addAll(header, topRow, sliderContainer, controlsWrapper, bottomBar);
+        contentVBox.getChildren().addAll(header, topRow, sliderContainer, combinedBottom);
         VBox.setVgrow(topRow, Priority.ALWAYS);
 
         BorderPane mainPane = new BorderPane();
@@ -282,13 +287,13 @@ public class PlayerController extends Application {
         mainPane.setCenter(contentVBox);
 
         Pane rootOverlay = new Pane();
-        mainPane.setPrefSize(1024, 720);
+        mainPane.setPrefSize(1200, 720);
         mainPane.prefWidthProperty().bind(rootOverlay.widthProperty());
         mainPane.prefHeightProperty().bind(rootOverlay.heightProperty());
 
         rootOverlay.getChildren().addAll(mainPane, playlistDropdownCard);
 
-        Scene scene = new Scene(rootOverlay, 1024, 720);
+        Scene scene = new Scene(rootOverlay, 1200, 720);
         scene.getStylesheets().add(getClass().getResource("/styles/style.css").toExternalForm());
         playlistDropdownCard.getStylesheets().add(scene.getStylesheets().get(0));
 
@@ -332,7 +337,7 @@ public class PlayerController extends Application {
                 LanguageManager.createStringBinding("app.title")
         );
         primaryStage.setScene(scene);
-        primaryStage.setMinWidth(900);
+        primaryStage.setMinWidth(1150);
         primaryStage.setMinHeight(650);
 
         primaryStage.setOnCloseRequest(event -> {
