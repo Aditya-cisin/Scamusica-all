@@ -334,7 +334,7 @@ public class CodeVerificationController extends Application {
                         }
 
                         String deviceId = DeviceFingerprint.getFingerprint();
-                        System.out.println("Device Id : " + deviceId);
+                        AppLogger.log("Device Id : " + deviceId);
 
                         String requestBody = "{"
                                 + "\"licenseCode\": \"" + enteredPassword + "\","
