@@ -282,13 +282,13 @@ public class PlayerController extends Application {
         mainPane.setCenter(contentVBox);
 
         Pane rootOverlay = new Pane();
-        mainPane.setPrefSize(1200, 760);
+        mainPane.setPrefSize(1024, 720);
         mainPane.prefWidthProperty().bind(rootOverlay.widthProperty());
         mainPane.prefHeightProperty().bind(rootOverlay.heightProperty());
 
         rootOverlay.getChildren().addAll(mainPane, playlistDropdownCard);
 
-        Scene scene = new Scene(rootOverlay, 1200, 820);
+        Scene scene = new Scene(rootOverlay, 1024, 720);
         scene.getStylesheets().add(getClass().getResource("/styles/style.css").toExternalForm());
         playlistDropdownCard.getStylesheets().add(scene.getStylesheets().get(0));
 
@@ -332,6 +332,8 @@ public class PlayerController extends Application {
                 LanguageManager.createStringBinding("app.title")
         );
         primaryStage.setScene(scene);
+        primaryStage.setMinWidth(900);
+        primaryStage.setMinHeight(650);
 
         primaryStage.setOnCloseRequest(event -> {
             AppLogger.log("[APP] Closing application");
@@ -745,23 +747,23 @@ public class PlayerController extends Application {
                                             long savedTime = adPlayer.getSavedSongTime();
                                             String startTimeOpt = ":start-time=" + (savedTime / 1000.0f);
                                             
+                                            vlcPlayer.audio().setVolume(0);
                                             new Thread(() -> {
                                                 try {
-                                                    for(int i = 0; i < 15; i++) {
+                                                    for(int i = 0; i < 50; i++) {
                                                         vlcPlayer.audio().setVolume(0);
-                                                        vlcPlayer.audio().setMute(true);
-                                                        Thread.sleep(100);
+                                                        Thread.sleep(30);
                                                     }
                                                 } catch (Exception e) {}
                                             }).start();
                                             
                                             vlcPlayer.media().play(tempFile.getAbsolutePath(), startTimeOpt);
+                                            vlcPlayer.audio().setVolume(0);
                                             
                                             schedular.schedule(() -> {
                                                 new Thread(() -> {
                                                     try {
                                                         vlcPlayer.audio().setVolume(0);
-                                                        vlcPlayer.audio().setMute(false);
                                                         int steps = 20;
                                                         for (int i = 1; i <= steps; i++) {
                                                             int currentVol = (int) (originalVol * ((double) i / steps));
@@ -783,23 +785,23 @@ public class PlayerController extends Application {
                                 long savedTime = adPlayer.getSavedSongTime();
                                 String startTimeOpt = ":start-time=" + (savedTime / 1000.0f);
                                 
+                                vlcPlayer.audio().setVolume(0);
                                 new Thread(() -> {
                                     try {
-                                        for(int i = 0; i < 15; i++) {
+                                        for(int i = 0; i < 50; i++) {
                                             vlcPlayer.audio().setVolume(0);
-                                            vlcPlayer.audio().setMute(true);
-                                            Thread.sleep(100);
+                                            Thread.sleep(30);
                                         }
                                     } catch (Exception e) {}
                                 }).start();
                                 
                                 vlcPlayer.media().play(encodeMediaUrl(track.getUrl()), startTimeOpt);
+                                vlcPlayer.audio().setVolume(0);
                                 
                                 schedular.schedule(() -> {
                                     new Thread(() -> {
                                         try {
                                             vlcPlayer.audio().setVolume(0);
-                                            vlcPlayer.audio().setMute(false);
                                             int steps = 20;
                                             for (int i = 1; i <= steps; i++) {
                                                 int currentVol = (int) (originalVol * ((double) i / steps));
