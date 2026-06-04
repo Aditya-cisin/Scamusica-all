@@ -143,7 +143,7 @@ public class PlayerAlbum {
     public void bindImageSize(ImageView img, Scene scene, HBox progressRow, Label titleCentered) {
         img.fitWidthProperty().bind(Bindings.createDoubleBinding(() -> {
             double w = scene.getWidth() * 0.27;
-            double h = scene.getHeight() * 0.40; // Don't exceed 40% of window height
+            double h = scene.getHeight() * 0.35; // Don't exceed 35% of window height
             double size = Math.min(w, h);
             if (size < 120) size = 120; // Reduced min size for small screens
             if (size > 520) size = 520;
