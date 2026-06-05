@@ -115,7 +115,6 @@ public class PlayerController extends Application {
     @Override
     public void start(Stage primaryStage) {
 
-        AppLogger.init();
         // === NETWORK MONITOR START ===
         NetworkMonitor.getInstance().start();
         AppLogger.log("[APP] Player started");
