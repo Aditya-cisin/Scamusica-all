@@ -6,6 +6,7 @@ import com.musicplayer.scamusica.manager.LanguageManager;
 import com.musicplayer.scamusica.manager.SessionManager;
 import javafx.application.Application;
 import javafx.stage.Stage;
+import com.musicplayer.scamusica.util.AppLogger;
 
 public class Main extends Application {
     @Override
