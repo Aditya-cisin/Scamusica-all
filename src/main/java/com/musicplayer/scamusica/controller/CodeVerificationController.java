@@ -7,6 +7,7 @@ import com.musicplayer.scamusica.manager.LanguageManager;
 import com.musicplayer.scamusica.manager.SessionManager;
 import com.musicplayer.scamusica.service.ConnectivityMonitor;
 import com.musicplayer.scamusica.ui.LangItem;
+import com.musicplayer.scamusica.util.AppLogger;
 import com.musicplayer.scamusica.util.Utility;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -21,7 +22,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import com.musicplayer.scamusica.util.AppLogger;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
