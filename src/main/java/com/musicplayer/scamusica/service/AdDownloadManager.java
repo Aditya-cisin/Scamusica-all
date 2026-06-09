@@ -15,37 +15,48 @@ public class AdDownloadManager {
 
     private static final String AD_DIR_NAME = ".scamusica" + File.separator + "ads";
 
-    // Ad download karo — simple direct download (no encryption needed for ads)
     public static File getAdDir() {
         File dir = new File(System.getProperty("user.home") + File.separator + AD_DIR_NAME);
         if (!dir.exists()) dir.mkdirs();
         return dir;
     }
 
-    // Ad ki local file path return karo
-    public static File getLocalAdFile(Ad ad) {
-        if (ad == null || ad.getId() == null) return null;
-        return new File(getAdDir(), "ad-" + ad.getId() + ".mp3");
+    public static File getLocalAdFile(com.musicplayer.scamusica.model.AdAudio adAudio) {
+        if (adAudio == null || adAudio.getId() == null) return null;
+        return new File(getAdDir(), "ad-audio-" + adAudio.getId() + ".mp3");
     }
 
-    // Check karo ki ad locally available hai
     public static boolean isAdDownloaded(Ad ad) {
-        File f = getLocalAdFile(ad);
-        return f != null && f.exists() && f.length() > 1024;
+        if (ad == null || ad.getAdAudios() == null || ad.getAdAudios().isEmpty()) return false;
+        for (com.musicplayer.scamusica.model.AdAudio adAudio : ad.getAdAudios()) {
+            File f = getLocalAdFile(adAudio);
+            if (f == null || !f.exists() || f.length() <= 1024) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    // Ek ad download karo background mein
     public static void downloadAd(Ad ad) {
-        if (ad == null || ad.getId() == null) return;
+        if (ad == null || ad.getId() == null || ad.getAdAudios() == null) return;
         if (isAdDownloaded(ad)) {
-            AppLogger.log("[AdDownload] Already exists: ad-" + ad.getId());
+            AppLogger.log("[AdDownload] Already exists all audios for ad-" + ad.getId());
             return;
         }
 
-        String audioFile = ad.getAudioFile();
+        for (com.musicplayer.scamusica.model.AdAudio adAudio : ad.getAdAudios()) {
+            downloadAdAudio(adAudio);
+        }
+    }
+
+    private static void downloadAdAudio(com.musicplayer.scamusica.model.AdAudio adAudio) {
+        if (adAudio == null || adAudio.getId() == null) return;
+        File f = getLocalAdFile(adAudio);
+        if (f != null && f.exists() && f.length() > 1024) return;
+
+        String audioFile = adAudio.getAudioFile();
         if (audioFile == null || audioFile.isEmpty()) return;
 
-        // Full URL banao
         String downloadUrl;
         if (audioFile.startsWith("http://") || audioFile.startsWith("https://")) {
             downloadUrl = audioFile;
@@ -60,17 +71,15 @@ public class AdDownloadManager {
 
         final String finalUrl = downloadUrl;
 
-        // Background thread mein download karo
         Thread t = new Thread(() -> {
             try {
-                File outFile = getLocalAdFile(ad);
-                AppLogger.log("[AdDownload] Downloading ad-" + ad.getId() + " from: " + finalUrl);
+                File outFile = getLocalAdFile(adAudio);
+                AppLogger.log("[AdDownload] Downloading ad-audio-" + adAudio.getId() + " from: " + finalUrl);
 
                 HttpURLConnection conn = (HttpURLConnection) new URL(finalUrl).openConnection();
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(30000);
 
-                // Auth token add karo agar chahiye
                 String token = SessionManager.loadToken();
                 if (token != null && !token.isEmpty()) {
                     conn.setRequestProperty("Authorization", "Bearer " + token);
@@ -86,14 +95,14 @@ public class AdDownloadManager {
                             fos.write(buffer, 0, read);
                         }
                     }
-                    AppLogger.log("[AdDownload] Done: ad-" + ad.getId() + " size=" + outFile.length());
+                    AppLogger.log("[AdDownload] Done: ad-audio-" + adAudio.getId() + " size=" + outFile.length());
                 } else {
-                    AppLogger.log("[AdDownload] Failed HTTP " + responseCode + " for ad-" + ad.getId());
+                    AppLogger.log("[AdDownload] Failed HTTP " + responseCode + " for ad-audio-" + adAudio.getId());
                 }
                 conn.disconnect();
 
             } catch (Exception e) {
-                AppLogger.log("[AdDownload] Error downloading ad-" + ad.getId() + ": " + e.getMessage());
+                AppLogger.log("[AdDownload] Error downloading ad-audio-" + adAudio.getId() + ": " + e.getMessage());
             }
         });
         t.setDaemon(true);
@@ -101,7 +110,6 @@ public class AdDownloadManager {
         t.start();
     }
 
-    // Saare ads download karo
     public static void downloadAllAds(List<Ad> ads) {
         if (ads == null || ads.isEmpty()) return;
         for (Ad ad : ads) {
